@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Booking {{ booking.booking_reference }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+    <div class="confirm-head no-print">
+        {% if booking.booking_status == 'Cancelled' %}
+            <h1>Booking cancelled</h1>
+            <p>This booking was cancelled{% if booking.cancelled_at %} on {{ booking.cancelled_at|nicedate('%d %b %Y') }}{% endif %}. The seats have been released.</p>
+        {% elif booking.booking_status == 'Pending' %}
+            <h1>Booking received</h1>
+            <p>Your seats are reserved. Please pay at any SkyLink Airlines office to confirm this booking.</p>
+        {% else %}
+            <div class="confirm-check">&#10003;</div>
+            <h1>Your booking is confirmed!</h1>
+            <p>Keep your booking reference <strong>{{ booking.booking_reference }}</strong> &mdash; you will need it with your email to manage this booking.</p>
+        {% endif %}
+    </div>
+
+    {% include "_ticket.html" %}
+
+    <div class="ticket-actions no-print">
+        <button type="button" class="btn btn-primary" data-print>&#128424; Print Ticket</button>
+        <a href="{{ url_for('my_bookings') }}" class="btn btn-outline">Manage booking</a>
+        <a href="{{ url_for('index') }}" class="btn btn-outline">Back to home</a>
+    </div>
+</div>
+{% endblock %}

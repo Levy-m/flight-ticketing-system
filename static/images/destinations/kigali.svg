@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of Kigali">
+  <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4f2"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient></defs>
+  <rect width="800" height="450" fill="url(#s)"/>
+  <circle cx="620" cy="140" r="60" fill="#fde68a" opacity=".9"/>
+  <g fill="#fff" opacity=".6"><ellipse cx="160" cy="90" rx="90" ry="16"/><ellipse cx="420" cy="60" rx="70" ry="12"/></g>
+  <path d="M0 320 Q 150 230 320 300 T 640 280 T 800 300 L800 450 L0 450Z" fill="#2e7d32"/><path d="M0 360 Q 200 300 420 350 T 800 340 L800 450 L0 450Z" fill="#43a047"/><g><rect x="330" y="220" width="36" height="110" fill="#f1f5f9"/><rect x="372" y="190" width="30" height="140" fill="#e2e8f0"/><rect x="410" y="240" width="44" height="90" fill="#f8fafc"/><ellipse cx="386" cy="190" rx="22" ry="8" fill="#94a3b8"/></g><path d="M0 400 Q 400 370 800 400 L800 450 L0 450Z" fill="#1b5e20"/>
+  <rect x="0" y="390" width="800" height="60" fill="#43a047" opacity=".0"/>
+</svg>

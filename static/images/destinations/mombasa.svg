@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of Mombasa">
+  <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5ec8f0"/><stop offset="1" stop-color="#bfe9fb"/></linearGradient></defs>
+  <rect width="800" height="450" fill="url(#s)"/>
+  <circle cx="620" cy="140" r="60" fill="#ffd166" opacity=".9"/>
+  <g fill="#fff" opacity=".6"><ellipse cx="160" cy="90" rx="90" ry="16"/><ellipse cx="420" cy="60" rx="70" ry="12"/></g>
+  <path d="M0 300 Q 200 285 400 300 T 800 300 L800 450 L0 450Z" fill="#1aa3c8"/><path d="M0 330 Q 200 318 400 330 T 800 330 L800 450 L0 450Z" fill="#128bb0"/><path d="M0 370 Q 300 340 800 380 L800 450 L0 450Z" fill="#f3d9a4"/><g transform="translate(120 250)"><rect x="0" y="40" width="220" height="100" fill="#c97b4a"/><rect x="-20" y="20" width="50" height="120" fill="#b86b3c"/><rect x="190" y="20" width="50" height="120" fill="#b86b3c"/><g fill="#b86b3c"><rect x="36" y="28" width="14" height="14"/><rect x="64" y="28" width="14" height="14"/><rect x="92" y="28" width="14" height="14"/><rect x="120" y="28" width="14" height="14"/><rect x="148" y="28" width="14" height="14"/><rect x="176" y="28" width="14" height="14"/></g><rect x="95" y="90" width="30" height="50" fill="#5b3a1e"/></g><g transform="translate(600 400) scale(1.0)"><path d="M0 0 C 6 -60, 14 -120, 30 -170" stroke="#5b3a1e" stroke-width="10" fill="none"/>
+    <g fill="#1f7a3a"><path d="M30 -170 C 70 -190, 110 -170, 130 -140 C 90 -160, 60 -160, 30 -170Z"/><path d="M30 -170 C -10 -200, -60 -190, -80 -160 C -40 -175, -5 -175, 30 -170Z"/>
+    <path d="M30 -170 C 60 -150, 80 -110, 80 -80 C 60 -120, 45 -140, 30 -170Z"/><path d="M30 -170 C 0 -150, -30 -120, -40 -90 C -15 -125, 5 -145, 30 -170Z"/><path d="M30 -170 C 40 -210, 70 -230, 100 -230 C 70 -215, 50 -195, 30 -170Z"/></g></g><g transform="translate(700 410) scale(0.8)"><path d="M0 0 C 6 -60, 14 -120, 30 -170" stroke="#5b3a1e" stroke-width="10" fill="none"/>
+    <g fill="#1f7a3a"><path d="M30 -170 C 70 -190, 110 -170, 130 -140 C 90 -160, 60 -160, 30 -170Z"/><path d="M30 -170 C -10 -200, -60 -190, -80 -160 C -40 -175, -5 -175, 30 -170Z"/>
+    <path d="M30 -170 C 60 -150, 80 -110, 80 -80 C 60 -120, 45 -140, 30 -170Z"/><path d="M30 -170 C 0 -150, -30 -120, -40 -90 C -15 -125, 5 -145, 30 -170Z"/><path d="M30 -170 C 40 -210, 70 -230, 100 -230 C 70 -215, 50 -195, 30 -170Z"/></g></g>
+  <rect x="0" y="390" width="800" height="60" fill="#f3d9a4" opacity=".0"/>
+</svg>

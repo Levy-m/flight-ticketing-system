@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Contact Messages{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="container">
+    <h1 class="admin-title">Contact messages</h1>
+    {% for m in messages %}
+        <article class="panel message">
+            <div class="panel-head">
+                <h3>{{ m.subject }}</h3>
+                <span class="muted small">{{ m.submission_date }}</span>
+            </div>
+            <p class="muted small">From <strong>{{ m.customer_name }}</strong> &lt;{{ m.email }}&gt;</p>
+            <p class="message-body">{{ m.message }}</p>
+        </article>
+    {% else %}
+        <div class="empty-state"><p>No messages yet.</p></div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of Dubai">
+  <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6a65a"/><stop offset="1" stop-color="#fde3c0"/></linearGradient></defs>
+  <rect width="800" height="450" fill="url(#s)"/>
+  <circle cx="620" cy="140" r="60" fill="#fff3d6" opacity=".9"/>
+  <g fill="#fff" opacity=".6"><ellipse cx="160" cy="90" rx="90" ry="16"/><ellipse cx="420" cy="60" rx="70" ry="12"/></g>
+  <rect x="380" y="180" width="40" height="210" fill="#334155"/><rect x="430" y="220" width="50" height="170" fill="#475569"/><rect x="300" y="250" width="60" height="140" fill="#3f4f66"/><rect x="500" y="240" width="45" height="150" fill="#334155"/><rect x="560" y="270" width="70" height="120" fill="#475569"/><rect x="220" y="290" width="60" height="100" fill="#3f4f66"/><rect x="640" y="300" width="60" height="90" fill="#334155"/><path d="M398 60 L402 60 L410 180 L420 180 L426 260 L436 260 L444 390 L356 390 L364 260 L374 260 L380 180 L390 180Z" fill="#1e293b"/><path d="M0 390 Q 200 360 420 385 T 800 380 L800 450 L0 450Z" fill="#e7b875"/>
+  <rect x="0" y="390" width="800" height="60" fill="#e7b875" opacity=".0"/>
+</svg>

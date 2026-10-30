@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of Kisumu">
+  <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f08a5d"/><stop offset="1" stop-color="#fcd5a5"/></linearGradient></defs>
+  <rect width="800" height="450" fill="url(#s)"/>
+  <circle cx="620" cy="140" r="60" fill="#fff1c1" opacity=".9"/>
+  <g fill="#fff" opacity=".6"><ellipse cx="160" cy="90" rx="90" ry="16"/><ellipse cx="420" cy="60" rx="70" ry="12"/></g>
+  <path d="M0 330 L800 330 L800 450 L0 450Z" fill="#2a6fa1"/><path d="M0 330 L800 330" stroke="#f9b16e" stroke-width="3" opacity=".7"/><rect x="560" y="340" width="120" height="6" fill="#fcd34d" opacity=".6"/><rect x="580" y="356" width="80" height="5" fill="#fcd34d" opacity=".5"/><g transform="translate(250 335)"><path d="M-40 0 L40 0 L28 10 L-30 10Z" fill="#2b1d12"/><path d="M0 0 L0 -40" stroke="#2b1d12" stroke-width="3"/></g><g transform="translate(720 400) scale(0.7)"><path d="M0 0 C 6 -60, 14 -120, 30 -170" stroke="#5b3a1e" stroke-width="10" fill="none"/>
+    <g fill="#1f7a3a"><path d="M30 -170 C 70 -190, 110 -170, 130 -140 C 90 -160, 60 -160, 30 -170Z"/><path d="M30 -170 C -10 -200, -60 -190, -80 -160 C -40 -175, -5 -175, 30 -170Z"/>
+    <path d="M30 -170 C 60 -150, 80 -110, 80 -80 C 60 -120, 45 -140, 30 -170Z"/><path d="M30 -170 C 0 -150, -30 -120, -40 -90 C -15 -125, 5 -145, 30 -170Z"/><path d="M30 -170 C 40 -210, 70 -230, 100 -230 C 70 -215, 50 -195, 30 -170Z"/></g></g>
+  <rect x="0" y="390" width="800" height="60" fill="#2a6fa1" opacity=".0"/>
+</svg>

@@ -1,0 +1,107 @@
+{# Reusable form and display helpers #}
+
+{% macro field_error(errors, name) -%}
+    {% if errors and errors.get(name) %}<span class="field-error">{{ errors[name] }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+    <span class="badge badge-{{ status|lower }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro search_form(cities, args, compact=false) -%}
+<form class="search-form {{ 'search-form-compact' if compact }}" action="{{ url_for('search_flights') }}" method="get" novalidate data-validate>
+    <div class="trip-type">
+        <label><input type="radio" name="trip" value="oneway" {{ 'checked' if not args.get('return_date') }}> One way</label>
+        <label><input type="radio" name="trip" value="return" {{ 'checked' if args.get('return_date') }}> Return</label>
+    </div>
+    <div class="search-grid">
+        <div class="form-group">
+            <label for="from">From</label>
+            <input type="text" list="city-list" id="from" name="from" placeholder="City or airport" value="{{ args.get('from', '') }}" required>
+        </div>
+        <button type="button" class="swap-btn" title="Swap cities" aria-label="Swap departure and destination">&#8646;</button>
+        <div class="form-group">
+            <label for="to">To</label>
+            <input type="text" list="city-list" id="to" name="to" placeholder="City or airport" value="{{ args.get('to', '') }}" required>
+        </div>
+        <div class="form-group">
+            <label for="departure_date">Departure date</label>
+            <input type="date" id="departure_date" name="departure_date" min="{{ today_iso }}" value="{{ args.get('departure_date', '') }}" required>
+        </div>
+        <div class="form-group return-group">
+            <label for="return_date">Return date</label>
+            <input type="date" id="return_date" name="return_date" min="{{ today_iso }}" value="{{ args.get('return_date', '') }}">
+        </div>
+        <div class="form-group">
+            <label for="passengers">Passengers</label>
+            <select id="passengers" name="passengers">
+                {% for n in range(1, 10) %}
+                    <option value="{{ n }}" {{ 'selected' if args.get('passengers', '1')|string == n|string }}>{{ n }} {{ 'Passenger' if n == 1 else 'Passengers' }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="travel_class">Class</label>
+            <select id="travel_class" name="travel_class">
+                {% for c in travel_classes %}
+                    <option value="{{ c }}" {{ 'selected' if args.get('travel_class', 'Economy') == c }}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group form-submit">
+            <button type="submit" class="btn btn-accent btn-block">Search Flights</button>
+        </div>
+    </div>
+    <datalist id="city-list">
+        {% for c in cities %}<option value="{{ c }}">{% endfor %}
+    </datalist>
+</form>
+{%- endmacro %}
+
+{% macro flight_table(flights, passengers, show_date=false) -%}
+<div class="table-wrap">
+<table class="data-table flight-table">
+    <thead>
+        <tr>
+            <th>Flight Number</th>
+            <th>Airline</th>
+            <th>Departure</th>
+            <th>Destination</th>
+            {% if show_date %}<th>Date</th>{% endif %}
+            <th>Departure Time</th>
+            <th>Arrival Time</th>
+            <th>Ticket Price</th>
+            <th>Seats</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for f in flights %}
+        <tr>
+            <td data-label="Flight"><a href="{{ url_for('flight_details', flight_id=f.flight_id, passengers=passengers) }}" class="flight-no">{{ f.flight_number }}</a></td>
+            <td data-label="Airline">{{ f.airline_name }}</td>
+            <td data-label="Departure">{{ f.departure_city }} <small class="muted">{{ f.departure_airport|code }}</small></td>
+            <td data-label="Destination">{{ f.destination_city }} <small class="muted">{{ f.destination_airport|code }}</small></td>
+            {% if show_date %}<td data-label="Date">{{ f.departure_date|nicedate('%a %d %b') }}</td>{% endif %}
+            <td data-label="Departs">{{ f.departure_time|time12 }}</td>
+            <td data-label="Arrives">{{ f.arrival_time|time12 }}</td>
+            <td data-label="Price"><strong>{{ f.ticket_price|ksh }}</strong><br><small class="muted">{{ f.travel_class }}</small></td>
+            <td data-label="Seats">
+                {% if f.available_seats == 0 %}<span class="badge badge-cancelled">Sold out</span>
+                {% elif f.available_seats < passengers %}<span class="badge badge-pending">Only {{ f.available_seats }} left</span>
+                {% elif f.available_seats <= 5 %}<span class="badge badge-pending">{{ f.available_seats }} left</span>
+                {% else %}{{ f.available_seats }}{% endif %}
+            </td>
+            <td data-label="">
+                {% if f.available_seats >= passengers %}
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('booking', flight_id=f.flight_id, travel_class=f.travel_class, passengers=passengers) }}">Book Now</a>
+                {% else %}
+                    <span class="btn btn-sm btn-disabled" aria-disabled="true">Unavailable</span>
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{%- endmacro %}

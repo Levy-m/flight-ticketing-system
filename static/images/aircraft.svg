@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="SkyLink Airlines aircraft flying above the clouds at sunset">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b2545"/><stop offset=".55" stop-color="#1e5fa8"/><stop offset=".85" stop-color="#f6a65a"/><stop offset="1" stop-color="#fbd38d"/>
+    </linearGradient>
+    <radialGradient id="sun" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#fff7d6"/><stop offset=".4" stop-color="#fcd34d" stop-opacity=".9"/><stop offset="1" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cfd8e3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1250" cy="700" r="260" fill="url(#sun)"/>
+  <g fill="#fff" opacity=".9">
+    <ellipse cx="200" cy="820" rx="320" ry="90"/><ellipse cx="520" cy="860" rx="300" ry="80"/>
+    <ellipse cx="900" cy="840" rx="340" ry="95"/><ellipse cx="1300" cy="870" rx="380" ry="90"/>
+  </g>
+  <g fill="#fff" opacity=".35">
+    <ellipse cx="300" cy="300" rx="180" ry="26"/><ellipse cx="1350" cy="220" rx="220" ry="30"/><ellipse cx="800" cy="160" rx="150" ry="18"/>
+  </g>
+  <!-- aircraft -->
+  <g transform="translate(1000 420) rotate(-8) scale(1.25)">
+    <path d="M-300 0 C -300 -30, -250 -42, -180 -42 L 230 -42 C 300 -42, 340 -20, 360 0 C 340 20, 300 30, 230 30 L -180 30 C -260 30, -300 20, -300 0 Z" fill="url(#body)"/>
+    <path d="M-300 0 C -300 -30, -250 -42, -180 -42 L 230 -42 C 300 -42, 340 -20, 360 0 Z" fill="#fff"/>
+    <path d="M-240 6 L 330 6" stroke="#0b2545" stroke-width="10"/>
+    <path d="M-240 18 L 300 18" stroke="#f59e0b" stroke-width="6"/>
+    <path d="M300 -22 C 318 -22, 336 -14, 346 -6 L 316 -6 Z" fill="#0b2545"/>
+    <g fill="#13315c">
+      <circle cx="-150" cy="-18" r="6"/><circle cx="-120" cy="-18" r="6"/><circle cx="-90" cy="-18" r="6"/><circle cx="-60" cy="-18" r="6"/>
+      <circle cx="-30" cy="-18" r="6"/><circle cx="0" cy="-18" r="6"/><circle cx="30" cy="-18" r="6"/><circle cx="60" cy="-18" r="6"/>
+      <circle cx="90" cy="-18" r="6"/><circle cx="120" cy="-18" r="6"/><circle cx="150" cy="-18" r="6"/><circle cx="180" cy="-18" r="6"/>
+    </g>
+    <path d="M-30 10 L -170 170 L -120 170 L 70 10 Z" fill="#dbe3ee"/>
+    <path d="M-30 -30 L -110 -120 L -80 -120 L 40 -30 Z" fill="#b8c4d4"/>
+    <ellipse cx="-80" cy="70" rx="44" ry="18" fill="#9aa9bd"/>
+    <path d="M-240 -30 L -320 -170 L -270 -170 L -190 -40 Z" fill="#0b2545"/>
+    <path d="M-300 -150 L -276 -150" stroke="#f59e0b" stroke-width="8"/>
+    <path d="M-250 10 L -330 60 L -300 62 L -220 14 Z" fill="#b8c4d4"/>
+    <text x="-80" y="-58" font-family="Poppins, Arial, sans-serif" font-weight="700" font-size="30" fill="#0b2545" opacity=".0">SkyLink</text>
+  </g>
+  <text x="980" y="404" transform="rotate(-8 1000 420)" font-family="Poppins, Arial, sans-serif" font-weight="700" font-size="34" fill="#0b2545">SKYLINK</text>
+</svg>

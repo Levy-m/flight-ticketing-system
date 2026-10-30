@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="container">
+    <h1 class="admin-title">Dashboard</h1>
+    <div class="stat-grid">
+        <div class="stat"><span class="stat-value">{{ stats.flights }}</span><span class="stat-label">Upcoming flights</span></div>
+        <div class="stat"><span class="stat-value">{{ stats.bookings }}</span><span class="stat-label">Active bookings</span></div>
+        <div class="stat"><span class="stat-value">{{ stats.pending }}</span><span class="stat-label">Pending payment</span></div>
+        <div class="stat"><span class="stat-value">{{ stats.revenue|ksh }}</span><span class="stat-label">Confirmed revenue</span></div>
+        <div class="stat"><span class="stat-value">{{ stats.messages }}</span><span class="stat-label">Contact messages</span></div>
+    </div>
+
+    <section class="panel">
+        <div class="panel-head">
+            <h2>Flight schedule &mdash; next 3 days</h2>
+            <a href="{{ url_for('admin_flights') }}" class="btn btn-sm btn-outline">All flights</a>
+        </div>
+        {% if schedule %}
+        <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Date</th><th>Flight</th><th>Route</th><th>Departs</th><th>Arrives</th><th>Seats available</th></tr></thead>
+            <tbody>
+            {% for f in schedule %}
+                <tr>
+                    <td data-label="Date">{{ f.departure_date|nicedate('%a %d %b') }}</td>
+                    <td data-label="Flight"><a href="{{ url_for('admin_edit_flight', flight_id=f.flight_id) }}" class="flight-no">{{ f.flight_number }}</a></td>
+                    <td data-label="Route">{{ f.departure_city }} &rarr; {{ f.destination_city }}</td>
+                    <td data-label="Departs">{{ f.departure_time|time12 }}</td>
+                    <td data-label="Arrives">{{ f.arrival_time|time12 }}</td>
+                    <td data-label="Seats">{{ f.available_seats }} / {{ f.total_seats }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}<p class="muted">No flights scheduled in the next 3 days.</p>{% endif %}
+    </section>
+
+    <div class="two-col">
+        <section class="panel">
+            <div class="panel-head">
+                <h2>Recent bookings</h2>
+                <a href="{{ url_for('admin_bookings') }}" class="btn btn-sm btn-outline">All bookings</a>
+            </div>
+            {% for b in recent %}
+                <div class="list-item">
+                    <div><strong>{{ b.booking_reference }}</strong> &middot; {{ b.full_name }}<br>
+                        <small class="muted">{{ b.flight_number }} &middot; {{ b.departure_city }} &rarr; {{ b.destination_city }} &middot; {{ b.total_cost|ksh }}</small></div>
+                    {{ status_badge(b.booking_status) }}
+                </div>
+            {% else %}<p class="muted">No bookings yet.</p>{% endfor %}
+        </section>
+        <section class="panel">
+            <div class="panel-head">
+                <h2>Latest messages</h2>
+                <a href="{{ url_for('admin_messages') }}" class="btn btn-sm btn-outline">All messages</a>
+            </div>
+            {% for m in messages %}
+                <div class="list-item">
+                    <div><strong>{{ m.subject }}</strong><br><small class="muted">{{ m.customer_name }} &middot; {{ m.submission_date|nicedate('%d %b %Y') }}</small></div>
+                </div>
+            {% else %}<p class="muted">No messages yet.</p>{% endfor %}
+        </section>
+    </div>
+</div>
+{% endblock %}

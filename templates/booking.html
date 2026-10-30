@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field_error %}
+{% block title %}Book Flight {{ flight.flight_number }}{% endblock %}
+{% block content %}
+<section class="page-banner">
+    <div class="container">
+        <h1>Passenger &amp; Booking Details</h1>
+        <p>Flight {{ flight.flight_number }} &middot; {{ flight.departure_city }} to {{ flight.destination_city }}</p>
+    </div>
+</section>
+
+<div class="container">
+<form method="post" action="{{ url_for('booking', flight_id=flight.flight_id) }}" class="booking-layout" novalidate data-validate id="booking-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="booking-main">
+        <fieldset class="panel">
+            <legend>Passenger Information</legend>
+            <p class="muted">Details of the lead passenger. The booking confirmation is sent to this email.</p>
+            <div class="form-row">
+                <div class="form-group {{ 'has-error' if errors.full_name }}">
+                    <label for="full_name">Full name <span class="req">*</span></label>
+                    <input type="text" id="full_name" name="full_name" value="{{ form.full_name }}" maxlength="100" required autocomplete="name" placeholder="e.g. Jane Wanjiru">
+                    {{ field_error(errors, 'full_name') }}
+                </div>
+                <div class="form-group {{ 'has-error' if errors.email }}">
+                    <label for="email">Email address <span class="req">*</span></label>
+                    <input type="email" id="email" name="email" value="{{ form.email }}" maxlength="120" required autocomplete="email" placeholder="name@example.com">
+                    {{ field_error(errors, 'email') }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group {{ 'has-error' if errors.phone }}">
+                    <label for="phone">Phone number <span class="req">*</span></label>
+                    <input type="tel" id="phone" name="phone" value="{{ form.phone }}" maxlength="16" required autocomplete="tel" placeholder="+254 712 345 678" pattern="\+?[0-9 ]{9,16}">
+                    {{ field_error(errors, 'phone') }}
+                </div>
+                <div class="form-group {{ 'has-error' if errors.identification_number }}">
+                    <label for="identification_number">National ID / Passport no. <span class="req">*</span></label>
+                    <input type="text" id="identification_number" name="identification_number" value="{{ form.identification_number }}" maxlength="20" required placeholder="e.g. 28456123 or A1234567" pattern="[A-Za-z0-9]{5,20}">
+                    {{ field_error(errors, 'identification_number') }}
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="panel">
+            <legend>Flight Information</legend>
+            <div class="info-grid">
+                <div><span class="info-label">Flight number</span><span class="info-value">{{ flight.flight_number }}</span></div>
+                <div><span class="info-label">Departure airport</span><span class="info-value">{{ flight.departure_airport }}</span></div>
+                <div><span class="info-label">Destination airport</span><span class="info-value">{{ flight.destination_airport }}</span></div>
+                <div><span class="info-label">Departure date</span><span class="info-value">{{ flight.departure_date|nicedate }}</span></div>
+                <div><span class="info-label">Departure &ndash; arrival</span><span class="info-value">{{ flight.departure_time|time12 }} &ndash; {{ flight.arrival_time|time12 }}</span></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group {{ 'has-error' if errors.travel_class }}">
+                    <label for="travel_class">Travel class <span class="req">*</span></label>
+                    <select id="travel_class" name="travel_class" required>
+                        {% for name, fare in fares.items() %}
+                            <option value="{{ name }}" data-price="{{ fare.ticket_price }}" data-seats="{{ fare.available_seats }}"
+                                    {{ 'selected' if form.travel_class == name }} {{ 'disabled' if fare.available_seats == 0 }}>
+                                {{ name }} &ndash; {{ fare.ticket_price|ksh }}{{ ' (sold out)' if fare.available_seats == 0 else ' (' ~ fare.available_seats ~ ' seats left)' }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {{ field_error(errors, 'travel_class') }}
+                </div>
+                <div class="form-group {{ 'has-error' if errors.passengers }}">
+                    <label for="passengers">Number of passengers <span class="req">*</span></label>
+                    <input type="number" id="passengers" name="passengers" value="{{ form.passengers }}" min="1" max="{{ max_passengers }}" step="1" required>
+                    {{ field_error(errors, 'passengers') }}
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="panel">
+            <legend>Payment (simulated)</legend>
+            <p class="notice">This is an academic demonstration. No real payment is taken and no card details are collected.</p>
+            <div class="radio-cards {{ 'has-error' if errors.payment }}">
+                <label class="radio-card">
+                    <input type="radio" name="payment" value="mpesa" {{ 'checked' if form.payment == 'mpesa' }}>
+                    <span><strong>Simulated M-Pesa</strong><br><small class="muted">Booking is confirmed immediately.</small></span>
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="payment" value="office" {{ 'checked' if form.payment == 'office' }}>
+                    <span><strong>Pay at airline office</strong><br><small class="muted">Booking stays Pending until paid.</small></span>
+                </label>
+            </div>
+            {{ field_error(errors, 'payment') }}
+            <div class="form-group checkbox {{ 'has-error' if errors.terms }}">
+                <label><input type="checkbox" name="terms" value="1" {{ 'checked' if form.terms }} required> I confirm the passenger details are correct and accept the fare rules (cancellation allowed up to 24 hours before departure).</label>
+                {{ field_error(errors, 'terms') }}
+            </div>
+        </fieldset>
+    </div>
+
+    <aside class="booking-summary panel">
+        <h3>Booking Information</h3>
+        <div class="summary-route">
+            <strong>{{ flight.departure_airport|code }}</strong> &#9992; <strong>{{ flight.destination_airport|code }}</strong>
+        </div>
+        <dl class="summary-list">
+            <dt>Ticket price per passenger</dt><dd id="sum-price">-</dd>
+            <dt>Number of passengers</dt><dd id="sum-pax">-</dd>
+            <dt>Travel class</dt><dd id="sum-class">-</dd>
+        </dl>
+        <div class="summary-total">
+            <span>Total ticket cost</span>
+            <strong id="sum-total">-</strong>
+        </div>
+        <p class="muted small" id="sum-formula"></p>
+        <button type="submit" class="btn btn-accent btn-block btn-lg">Confirm Booking</button>
+        <a href="{{ url_for('flight_details', flight_id=flight.flight_id) }}" class="btn btn-outline btn-block">Back to flight</a>
+    </aside>
+</form>
+</div>
+{% endblock %}

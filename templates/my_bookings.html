@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}My Bookings{% endblock %}
+{% block content %}
+<section class="page-banner">
+    <div class="container">
+        <h1>My Bookings</h1>
+        <p>View, print or cancel an existing booking.</p>
+    </div>
+</section>
+
+<div class="container narrow">
+    <form class="panel lookup-form no-print" method="post" action="{{ url_for('my_bookings') }}" novalidate data-validate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="reference">Booking reference</label>
+                <input type="text" id="reference" name="reference" value="{{ reference }}" placeholder="e.g. SLDEMO01" maxlength="10" required class="upper">
+            </div>
+            <div class="form-group">
+                <label for="email">Email used for the booking</label>
+                <input type="email" id="email" name="email" value="{{ email }}" placeholder="name@example.com" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Find my booking</button>
+    </form>
+
+    {% if booking %}
+        {% include "_ticket.html" %}
+        <div class="ticket-actions no-print">
+            <button type="button" class="btn btn-primary" data-print>&#128424; Print Ticket</button>
+            {% if cancellable %}
+                <form method="post" action="{{ url_for('cancel_my_booking') }}" class="inline-form"
+                      data-confirm="Cancel booking {{ booking.booking_reference }}? This cannot be undone.">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="reference" value="{{ booking.booking_reference }}">
+                    <input type="hidden" name="email" value="{{ email }}">
+                    <button type="submit" class="btn btn-danger">Cancel booking</button>
+                </form>
+            {% elif booking.booking_status != 'Cancelled' %}
+                <p class="muted">Online cancellation closes {{ cutoff }} hours before departure. Please contact our office for help.</p>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="panel info-panel no-print">
+            <h3>Cancellation policy</h3>
+            <ul>
+                <li>Bookings can be cancelled online up to {{ cutoff }} hours before departure.</li>
+                <li>Cancelled bookings are kept on record with the status <em>Cancelled</em>; the seats are released for other passengers.</li>
+                <li>For security, booking details are shown only when both the reference and email match.</li>
+            </ul>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

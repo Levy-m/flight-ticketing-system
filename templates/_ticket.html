@@ -1,0 +1,59 @@
+{# E-ticket card, shared by the confirmation and My Bookings pages. Expects `booking`. #}
+{% from "_macros.html" import status_badge %}
+<article class="ticket {{ 'ticket-cancelled' if booking.booking_status == 'Cancelled' }}" id="e-ticket">
+    <header class="ticket-head">
+        <div class="brand">
+            <img src="{{ url_for('static', filename='images/airline_logo.svg') }}" alt="SkyLink Airlines logo" width="40" height="40">
+            <span class="brand-text">SkyLink <strong>Airlines</strong></span>
+        </div>
+        <div class="ticket-title">E-TICKET / BOOKING CONFIRMATION</div>
+    </header>
+    <div class="ticket-body">
+        <div class="ticket-main">
+            <div class="ticket-row">
+                <div><span class="info-label">Passenger name</span><span class="info-value big">{{ booking.full_name|upper }}</span></div>
+                <div><span class="info-label">Booking reference</span><span class="info-value ref">{{ booking.booking_reference }}</span></div>
+            </div>
+            <div class="route route-ticket">
+                <div class="route-point">
+                    <span class="route-code">{{ booking.departure_airport|code }}</span>
+                    <span class="muted">{{ booking.departure_city }}</span>
+                    <span class="route-time">{{ booking.departure_time|time12 }}</span>
+                </div>
+                <div class="route-line"><span class="route-plane">&#9992;</span></div>
+                <div class="route-point">
+                    <span class="route-code">{{ booking.destination_airport|code }}</span>
+                    <span class="muted">{{ booking.destination_city }}</span>
+                    <span class="route-time">{{ booking.arrival_time|time12 }}</span>
+                </div>
+            </div>
+            <div class="ticket-grid">
+                <div><span class="info-label">Flight number</span><span class="info-value">{{ booking.flight_number }}</span></div>
+                <div><span class="info-label">Departure date</span><span class="info-value">{{ booking.departure_date|nicedate }}</span></div>
+                <div><span class="info-label">Departure time</span><span class="info-value">{{ booking.departure_time|time12 }}</span></div>
+                <div><span class="info-label">Travel class</span><span class="info-value">{{ booking.travel_class }}</span></div>
+                <div><span class="info-label">Departure airport</span><span class="info-value">{{ booking.departure_airport }}</span></div>
+                <div><span class="info-label">Destination airport</span><span class="info-value">{{ booking.destination_airport }}</span></div>
+                <div><span class="info-label">Passengers</span><span class="info-value">{{ booking.number_of_passengers }}</span></div>
+                <div><span class="info-label">Price per ticket</span><span class="info-value">{{ booking.price_per_ticket|ksh }}</span></div>
+                <div><span class="info-label">Total ticket cost</span><span class="info-value big">{{ booking.total_cost|ksh }}</span></div>
+                <div><span class="info-label">Booking status</span><span class="info-value">{{ status_badge(booking.booking_status) }}</span></div>
+                <div><span class="info-label">Payment</span><span class="info-value">{{ booking.payment_method }}</span></div>
+                <div><span class="info-label">Booked on</span><span class="info-value">{{ booking.booking_date|nicedate('%d %b %Y') }}</span></div>
+            </div>
+        </div>
+        <div class="ticket-stub">
+            <span class="info-label">Ref</span>
+            <span class="info-value ref">{{ booking.booking_reference }}</span>
+            <span class="info-label">Flight</span>
+            <span class="info-value">{{ booking.flight_number }}</span>
+            <span class="info-label">Class</span>
+            <span class="info-value">{{ booking.travel_class }}</span>
+            <div class="barcode" aria-hidden="true"></div>
+        </div>
+    </div>
+    <footer class="ticket-foot">
+        Please arrive at the airport at least 2 hours before departure (3 hours for international flights) with a valid ID or passport.
+        This e-ticket is a simulated document for an academic project.
+    </footer>
+</article>

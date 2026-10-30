@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import search_form, flight_table with context %}
+{% block title %}Search Flights{% endblock %}
+{% block content %}
+<section class="page-banner">
+    <div class="container">
+        <h1>Search Flights</h1>
+        <p>Find the best fares on SkyLink Airlines.</p>
+    </div>
+</section>
+
+<div class="container">
+    <div class="panel search-panel">
+        {{ search_form(cities, args, compact=true) }}
+    </div>
+
+    {% if valid %}
+        <section class="results">
+            <div class="results-head">
+                <h2>
+                    {{ criteria['from']|title }} <span class="arrow">&rarr;</span> {{ criteria['to']|title }}
+                </h2>
+                <p class="muted">
+                    {{ criteria.departure_date|nicedate }} &middot; {{ criteria.passengers }} passenger{{ 's' if criteria.passengers > 1 }} &middot; {{ criteria.travel_class }}
+                </p>
+            </div>
+
+            {% if outbound %}
+                <p class="results-count">{{ outbound|length }} flight{{ 's' if outbound|length != 1 }} found</p>
+                {{ flight_table(outbound, criteria.passengers) }}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">&#9992;</div>
+                    <h3>No flights available</h3>
+                    <p>Sorry, we could not find any {{ criteria.travel_class }} flights from <strong>{{ criteria['from'] }}</strong> to <strong>{{ criteria['to'] }}</strong> on {{ criteria.departure_date|nicedate }}.</p>
+                    {% if alternatives %}
+                        <p>These flights on the same route are available on other dates:</p>
+                    {% else %}
+                        <p>Try a different date, travel class or destination.</p>
+                    {% endif %}
+                </div>
+                {% if alternatives %}
+                    {{ flight_table(alternatives, criteria.passengers, show_date=true) }}
+                {% endif %}
+            {% endif %}
+
+            {% if criteria.return_date %}
+                <div class="results-head results-return">
+                    <h2>Return: {{ criteria['to']|title }} <span class="arrow">&rarr;</span> {{ criteria['from']|title }}</h2>
+                    <p class="muted">{{ criteria.return_date|nicedate }}</p>
+                </div>
+                {% if inbound %}
+                    {{ flight_table(inbound, criteria.passengers) }}
+                {% else %}
+                    <div class="empty-state empty-small">
+                        <p>No return flights are available on {{ criteria.return_date|nicedate }}. Try another return date.</p>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </section>
+    {% elif not searched %}
+        <div class="empty-state">
+            <div class="empty-icon">&#128269;</div>
+            <h3>Where would you like to go?</h3>
+            <p>Enter your departure city, destination and travel date above to see available flights.</p>
+            <p class="muted">Popular routes: Nairobi &rarr; Mombasa, Nairobi &rarr; Kisumu, Nairobi &rarr; Zanzibar.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

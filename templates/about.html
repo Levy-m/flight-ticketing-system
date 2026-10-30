@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}About Us{% endblock %}
+{% block content %}
+<section class="page-banner">
+    <div class="container">
+        <h1>About SkyLink Airlines</h1>
+        <p>Proudly Kenyan. Connecting people, places and possibilities.</p>
+    </div>
+</section>
+
+<div class="container">
+    <section class="about-intro">
+        <div>
+            <h2>Our story</h2>
+            <p>SkyLink Airlines was founded in Nairobi in 2012 with two turboprop aircraft and a single route to Mombasa. Today we operate a modern fleet of Bombardier Q400, Embraer E190 and Boeing 787 aircraft, flying to destinations across Kenya, East Africa and the Middle East.</p>
+            <p>Over the years we have carried more than three million passengers, built a reputation for punctuality and friendly service, and invested in digital tools &mdash; like this online booking platform &mdash; so customers no longer have to queue at our offices to buy a ticket.</p>
+        </div>
+        <img src="{{ url_for('static', filename='images/aircraft.svg') }}" alt="SkyLink Airlines aircraft in flight" class="about-img">
+    </section>
+
+    <section class="mv-grid">
+        <div class="panel">
+            <h3>Our mission</h3>
+            <p>To provide safe, reliable and affordable air travel that connects communities and businesses across Africa and beyond, with service that makes every passenger feel welcome.</p>
+        </div>
+        <div class="panel">
+            <h3>Our vision</h3>
+            <p>To be East Africa's most loved airline &mdash; recognised for punctuality, innovation and care for our passengers and the environment.</p>
+        </div>
+    </section>
+
+    <section class="section-tight">
+        <h2>Services we offer</h2>
+        <div class="services-grid">
+            <div class="service"><h4>Scheduled passenger flights</h4><p>Daily domestic flights and regular international services.</p></div>
+            <div class="service"><h4>Online booking &amp; e-tickets</h4><p>Search, book, print and cancel tickets from any device.</p></div>
+            <div class="service"><h4>Business &amp; First Class</h4><p>Lounge access, priority boarding and extra baggage.</p></div>
+            <div class="service"><h4>Group &amp; family travel</h4><p>Book up to 9 passengers under one reference.</p></div>
+            <div class="service"><h4>Cargo &amp; courier</h4><p>Fast belly-hold cargo on every route we fly.</p></div>
+            <div class="service"><h4>Holiday packages</h4><p>Flights plus hotels at the coast and in Zanzibar.</p></div>
+        </div>
+    </section>
+
+    <section class="section-tight">
+        <h2>Destinations we serve</h2>
+        <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>City</th><th>Airport</th><th>Code</th></tr></thead>
+            <tbody>
+            {% for city, airport in airports.items() %}
+                <tr><td data-label="City">{{ city }}</td><td data-label="Airport">{{ airport }}</td><td data-label="Code"><strong>{{ airport|code }}</strong></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

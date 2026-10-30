@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Flight {{ flight.flight_number }}{% endblock %}
+{% block content %}
+<section class="page-banner">
+    <div class="container">
+        <h1>Flight {{ flight.flight_number }}</h1>
+        <p>{{ flight.departure_city }} to {{ flight.destination_city }} &middot; {{ flight.departure_date|nicedate }}</p>
+    </div>
+</section>
+
+<div class="container">
+    <div class="panel route-panel">
+        <div class="route">
+            <div class="route-point">
+                <span class="route-code">{{ flight.departure_airport|code }}</span>
+                <span class="route-time">{{ flight.departure_time|time12 }}</span>
+                <span class="muted">{{ flight.departure_airport }}</span>
+            </div>
+            <div class="route-line">
+                <span class="route-duration">{{ flight|duration }}</span>
+                <span class="route-plane">&#9992;</span>
+                <span class="muted">Non-stop</span>
+            </div>
+            <div class="route-point">
+                <span class="route-code">{{ flight.destination_airport|code }}</span>
+                <span class="route-time">{{ flight.arrival_time|time12 }}</span>
+                <span class="muted">{{ flight.destination_airport }}</span>
+            </div>
+        </div>
+        <p class="muted center">Operated by {{ flight.airline_name }}{% if flight.aircraft %} &middot; {{ flight.aircraft }}{% endif %}</p>
+    </div>
+
+    <h2>Choose your class</h2>
+    {% if departed %}
+        <div class="empty-state empty-small"><p>This flight has already departed and can no longer be booked.</p></div>
+    {% endif %}
+    <div class="fare-grid">
+        {% for fare in fares %}
+        <div class="fare-card">
+            <h3>{{ fare.travel_class }}</h3>
+            <p class="fare-price">{{ fare.ticket_price|ksh }}</p>
+            <p class="muted">per passenger</p>
+            <ul class="fare-perks">
+                {% if fare.travel_class == 'Economy' %}
+                    <li>23 kg checked baggage</li><li>Complimentary snack</li><li>Standard seat</li>
+                {% elif fare.travel_class == 'Business' %}
+                    <li>2 &times; 32 kg checked baggage</li><li>Lounge access</li><li>Priority boarding</li>
+                {% else %}
+                    <li>3 &times; 32 kg checked baggage</li><li>Lie-flat seat</li><li>Chauffeur service</li>
+                {% endif %}
+            </ul>
+            <p>{% if fare.available_seats == 0 %}<span class="badge badge-cancelled">Sold out</span>{% else %}{{ fare.available_seats }} of {{ fare.total_seats }} seats available{% endif %}</p>
+            {% if fare.available_seats > 0 and not departed %}
+                <a class="btn btn-primary btn-block" href="{{ url_for('booking', flight_id=flight.flight_id, travel_class=fare.travel_class, passengers=[passengers, fare.available_seats]|min) }}">Book Now</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <p><a href="{{ url_for('search_flights') }}" class="btn btn-outline">&larr; Back to search</a></p>
+</div>
+{% endblock %}

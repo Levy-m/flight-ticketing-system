@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "_macros.html" import search_form with context %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="hero">
+    <div class="container hero-inner">
+        <div class="hero-text">
+            <span class="eyebrow">Welcome aboard SkyLink Airlines</span>
+            <h1>Fly further, <span>for less.</span></h1>
+            <p>Search, book and manage your flights across Kenya, East Africa and the Middle East in just a few clicks &mdash; no queues, no phone calls.</p>
+        </div>
+        <div class="search-card">
+            <h2>Find your flight</h2>
+            {{ search_form(cities, {}) }}
+        </div>
+    </div>
+</section>
+
+<section class="features container">
+    <div class="feature">
+        <div class="feature-icon">&#9992;</div>
+        <h3>11 destinations</h3>
+        <p>Daily domestic flights and regular international routes.</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">&#10003;</div>
+        <h3>Instant confirmation</h3>
+        <p>Get your booking reference and e-ticket immediately.</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">&#8634;</div>
+        <h3>Flexible changes</h3>
+        <p>Cancel online up to 24 hours before departure.</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">&#9742;</div>
+        <h3>24/7 support</h3>
+        <p>Our customer care team is always ready to help.</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head">
+            <h2>Featured destinations</h2>
+            <p>Hand-picked places our passengers love.</p>
+        </div>
+        <div class="card-grid">
+            {% for d in destinations %}
+            <article class="dest-card">
+                <img src="{{ url_for('static', filename='images/destinations/' ~ d.image) }}" alt="Illustration of {{ d.city }}" loading="lazy">
+                <div class="dest-body">
+                    <h3>{{ d.city }}</h3>
+                    <p>{{ d.blurb }}</p>
+                    <div class="dest-foot">
+                        {% if d.price %}<span class="price-from">from <strong>{{ d.price|ksh }}</strong></span>{% else %}<span class="muted">Coming soon</span>{% endif %}
+                        <a href="{{ url_for('book_flight', to=d.city) }}" class="btn btn-outline btn-sm">View flights</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section section-alt">
+    <div class="container">
+        <div class="section-head">
+            <h2>Hot deals &amp; promotions</h2>
+            <p>Book online and save 10% compared to our airline office fares.</p>
+        </div>
+        <div class="deal-grid">
+            {% for deal in deals %}
+            <div class="deal-card">
+                <span class="deal-tag">Web special</span>
+                <h3>{{ deal.departure_city }} &rarr; {{ deal.destination_city }}</h3>
+                <p class="deal-old">Office fare {{ (deal.price / 0.9)|round(-2)|ksh }}</p>
+                <p class="deal-price">{{ deal.price|ksh }}</p>
+                <p class="muted">Economy, one way &middot; from {{ deal.first_date|nicedate('%d %b') }}</p>
+                <a class="btn btn-accent btn-sm" href="{{ url_for('search_flights', **{'from': deal.departure_city, 'to': deal.destination_city, 'departure_date': deal.first_date, 'passengers': 1, 'travel_class': 'Economy'}) }}">Grab this deal</a>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="promo-banner">
+            <div>
+                <h3>Family Fly-Away offer</h3>
+                <p>Travelling as a group of 4 or more? Book together under one reference and enjoy priority check-in at no extra cost.</p>
+            </div>
+            <a href="{{ url_for('search_flights') }}" class="btn btn-light">Plan a family trip</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

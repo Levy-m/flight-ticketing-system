@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ flight.flight_number }}{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="container">
+    <h1 class="admin-title">Edit flight {{ flight.flight_number }}</h1>
+    {% if booked %}
+        <p class="notice">This flight has active bookings ({{ booked.values()|sum }} seat(s)). Available seats cannot exceed total seats minus booked seats.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('admin_edit_flight', flight_id=flight.flight_id) }}" novalidate data-validate>
+        {% include "admin/_flight_form.html" %}
+        <div class="form-actions">
+            <button type="submit" class="btn btn-accent">Save changes</button>
+            <a href="{{ url_for('admin_flights') }}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

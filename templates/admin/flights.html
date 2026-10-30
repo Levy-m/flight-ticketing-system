@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Manage Flights{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="container">
+    <div class="admin-title-row">
+        <h1 class="admin-title">Flights</h1>
+        <a href="{{ url_for('admin_add_flight') }}" class="btn btn-accent">+ Add flight</a>
+    </div>
+
+    <form class="panel filter-bar" method="get" action="{{ url_for('admin_flights') }}">
+        <div class="form-group">
+            <label for="q">Flight no. or city</label>
+            <input type="text" id="q" name="q" value="{{ q }}" placeholder="e.g. SL101 or Mombasa">
+        </div>
+        <div class="form-group">
+            <label for="date">Departure date</label>
+            <input type="date" id="date" name="date" value="{{ on_date }}">
+        </div>
+        <div class="form-group">
+            <label for="show">Show</label>
+            <select id="show" name="show">
+                <option value="upcoming" {{ 'selected' if show == 'upcoming' }}>Upcoming only</option>
+                <option value="all" {{ 'selected' if show == 'all' }}>All flights</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{{ url_for('admin_flights') }}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <p class="muted">{{ total }} flight{{ 's' if total != 1 }} found.</p>
+    {% if flights %}
+    <div class="table-wrap">
+    <table class="data-table admin-table">
+        <thead>
+            <tr><th>Flight</th><th>Route</th><th>Date</th><th>Time</th><th>Economy</th><th>Business</th><th>First</th><th>Bookings</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for f in flights %}
+            {% set fc = fares.get(f.flight_id, {}) %}
+            <tr>
+                <td data-label="Flight"><span class="flight-no">{{ f.flight_number }}</span><br><small class="muted">{{ f.airline_name }}</small></td>
+                <td data-label="Route">{{ f.departure_city }} &rarr; {{ f.destination_city }}</td>
+                <td data-label="Date">{{ f.departure_date|nicedate('%d %b %Y') }}</td>
+                <td data-label="Time">{{ f.departure_time|time12 }} &ndash; {{ f.arrival_time|time12 }}</td>
+                {% for c in travel_classes %}
+                    <td data-label="{{ c }}">
+                        {% if fc.get(c) %}{{ fc[c].ticket_price|ksh }}<br><small class="muted">{{ fc[c].available_seats }}/{{ fc[c].total_seats }} seats</small>
+                        {% else %}<span class="muted">&mdash;</span>{% endif %}
+                    </td>
+                {% endfor %}
+                <td data-label="Bookings">{{ f.booking_count }}</td>
+                <td data-label="Actions" class="actions">
+                    <a href="{{ url_for('admin_edit_flight', flight_id=f.flight_id) }}" class="btn btn-sm btn-primary">Edit</a>
+                    <form method="post" action="{{ url_for('admin_delete_flight', flight_id=f.flight_id) }}" class="inline-form"
+                          data-confirm="Delete flight {{ f.flight_number }}? This cannot be undone.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger" {% if f.booking_count %}title="Flights with bookings cannot be deleted"{% endif %}>Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if pages > 1 %}
+    <nav class="pagination">
+        {% for p in range(1, pages + 1) %}
+            <a href="{{ url_for('admin_flights', q=q, date=on_date, show=show, page=p) }}" class="{{ 'active' if p == page }}">{{ p }}</a>
+        {% endfor %}
+    </nav>
+    {% endif %}
+    {% else %}
+        <div class="empty-state"><p>No flights match your filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

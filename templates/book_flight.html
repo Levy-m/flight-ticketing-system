@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Book a Flight{% endblock %}
+{% block content %}
+<section class="page-banner">
+    <div class="container">
+        <h1>Book a Flight</h1>
+        <p>Pick an upcoming flight below, or use the search for a specific date.</p>
+    </div>
+</section>
+
+<div class="container">
+    <form class="panel filter-bar" method="get" action="{{ url_for('book_flight') }}">
+        <div class="form-group">
+            <label for="to">Destination</label>
+            <select id="to" name="to">
+                <option value="">All destinations</option>
+                {% for c in cities %}<option value="{{ c }}" {{ 'selected' if c == dest }}>{{ c }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{{ url_for('search_flights') }}" class="btn btn-outline">Search by date</a>
+    </form>
+
+    {% if flights %}
+    <div class="table-wrap">
+    <table class="data-table flight-table">
+        <thead>
+            <tr><th>Flight</th><th>Route</th><th>Date</th><th>Departs</th><th>Arrives</th><th>Fares from</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+        {% for f in flights %}
+            <tr>
+                <td data-label="Flight"><span class="flight-no">{{ f.flight_number }}</span></td>
+                <td data-label="Route">{{ f.departure_city }} &rarr; {{ f.destination_city }}</td>
+                <td data-label="Date">{{ f.departure_date|nicedate('%a %d %b') }}</td>
+                <td data-label="Departs">{{ f.departure_time|time12 }}</td>
+                <td data-label="Arrives">{{ f.arrival_time|time12 }}</td>
+                <td data-label="From"><strong>{{ f.from_price|ksh }}</strong></td>
+                <td data-label="">
+                    {% if f.seats_left > 0 %}
+                        <a class="btn btn-primary btn-sm" href="{{ url_for('flight_details', flight_id=f.flight_id) }}">Select</a>
+                    {% else %}
+                        <span class="badge badge-cancelled">Sold out</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <p class="muted">Showing the next {{ flights|length }} departures.</p>
+    {% else %}
+        <div class="empty-state"><h3>No upcoming flights</h3><p>There are no scheduled flights{% if dest %} to {{ dest }}{% endif %} right now.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

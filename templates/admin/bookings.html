@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block title %}Manage Bookings{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="container">
+    <h1 class="admin-title">Bookings</h1>
+
+    <form class="panel filter-bar" method="get" action="{{ url_for('admin_bookings') }}">
+        <div class="form-group">
+            <label for="reference">Booking reference</label>
+            <input type="text" id="reference" name="reference" value="{{ filters.reference }}" class="upper" placeholder="SL...">
+        </div>
+        <div class="form-group">
+            <label for="flight_number">Flight number</label>
+            <input type="text" id="flight_number" name="flight_number" value="{{ filters.flight_number }}" class="upper" placeholder="SL101">
+        </div>
+        <div class="form-group">
+            <label for="date">Departure date</label>
+            <input type="date" id="date" name="date" value="{{ filters.date }}">
+        </div>
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="">Any status</option>
+                {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if filters.status == s }}>{{ s }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{{ url_for('admin_bookings') }}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <p class="muted">{{ bookings|length }} booking{{ 's' if bookings|length != 1 }} found.</p>
+    {% if bookings %}
+    <div class="table-wrap">
+    <table class="data-table admin-table">
+        <thead>
+            <tr><th>Reference</th><th>Passenger</th><th>Email</th><th>Flight</th><th>Departure date</th><th>Passengers</th><th>Total cost</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for b in bookings %}
+            <tr>
+                <td data-label="Reference"><strong>{{ b.booking_reference }}</strong><br><small class="muted">{{ b.booking_date|nicedate('%d %b %Y') }}</small></td>
+                <td data-label="Passenger">{{ b.full_name }}</td>
+                <td data-label="Email">{{ b.email }}</td>
+                <td data-label="Flight">{{ b.flight_number }}<br><small class="muted">{{ b.departure_city }} &rarr; {{ b.destination_city }}</small></td>
+                <td data-label="Departure">{{ b.departure_date|nicedate('%d %b %Y') }}</td>
+                <td data-label="Passengers">{{ b.number_of_passengers }} &middot; {{ b.travel_class }}</td>
+                <td data-label="Total">{{ b.total_cost|ksh }}</td>
+                <td data-label="Status">{{ status_badge(b.booking_status) }}</td>
+                <td data-label="Actions" class="actions">
+                    {% if b.booking_status == 'Pending' %}
+                    <form method="post" action="{{ url_for('admin_update_booking', booking_id=b.booking_id) }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" name="action" value="confirm" class="btn btn-sm btn-primary">Confirm</button>
+                    </form>
+                    {% endif %}
+                    {% if b.booking_status != 'Cancelled' %}
+                    <form method="post" action="{{ url_for('admin_update_booking', booking_id=b.booking_id) }}" class="inline-form"
+                          data-confirm="Cancel booking {{ b.booking_reference }}?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" name="action" value="cancel" class="btn btn-sm btn-danger">Cancel</button>
+                    </form>
+                    {% else %}<span class="muted">&mdash;</span>{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+        <div class="empty-state"><p>No bookings match your filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,96 @@
+{# Shared add/edit flight form fields. Expects form, errors, airports, booked (optional). #}
+{% from "_macros.html" import field_error %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<fieldset class="panel">
+    <legend>Flight schedule</legend>
+    <div class="form-row three">
+        <div class="form-group {{ 'has-error' if errors.flight_number }}">
+            <label for="flight_number">Flight number <span class="req">*</span></label>
+            <input type="text" id="flight_number" name="flight_number" value="{{ form.flight_number or '' }}" maxlength="6" required class="upper" placeholder="SL101">
+            {{ field_error(errors, 'flight_number') }}
+        </div>
+        <div class="form-group">
+            <label for="airline_name">Airline</label>
+            <input type="text" id="airline_name" name="airline_name" value="{{ form.airline_name or 'SkyLink Airlines' }}" maxlength="60">
+        </div>
+        <div class="form-group">
+            <label for="aircraft">Aircraft</label>
+            <input type="text" id="aircraft" name="aircraft" value="{{ form.aircraft or '' }}" maxlength="60" placeholder="e.g. Bombardier Q400">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group {{ 'has-error' if errors.departure_city }}">
+            <label for="departure_city">Departure city <span class="req">*</span></label>
+            <input type="text" id="departure_city" name="departure_city" value="{{ form.departure_city or '' }}" list="admin-cities" required data-airport-target="departure_airport">
+            {{ field_error(errors, 'departure_city') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.departure_airport }}">
+            <label for="departure_airport">Departure airport <span class="req">*</span></label>
+            <input type="text" id="departure_airport" name="departure_airport" value="{{ form.departure_airport or '' }}" required placeholder="Airport name (CODE)">
+            {{ field_error(errors, 'departure_airport') }}
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group {{ 'has-error' if errors.destination_city }}">
+            <label for="destination_city">Destination city <span class="req">*</span></label>
+            <input type="text" id="destination_city" name="destination_city" value="{{ form.destination_city or '' }}" list="admin-cities" required data-airport-target="destination_airport">
+            {{ field_error(errors, 'destination_city') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.destination_airport }}">
+            <label for="destination_airport">Destination airport <span class="req">*</span></label>
+            <input type="text" id="destination_airport" name="destination_airport" value="{{ form.destination_airport or '' }}" required placeholder="Airport name (CODE)">
+            {{ field_error(errors, 'destination_airport') }}
+        </div>
+    </div>
+    <div class="form-row three">
+        <div class="form-group {{ 'has-error' if errors.departure_date }}">
+            <label for="departure_date">Departure date <span class="req">*</span></label>
+            <input type="date" id="departure_date" name="departure_date" value="{{ form.departure_date or '' }}" required>
+            {{ field_error(errors, 'departure_date') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.departure_time }}">
+            <label for="departure_time">Departure time <span class="req">*</span></label>
+            <input type="time" id="departure_time" name="departure_time" value="{{ form.departure_time or '' }}" required>
+            {{ field_error(errors, 'departure_time') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.arrival_time }}">
+            <label for="arrival_time">Arrival time <span class="req">*</span></label>
+            <input type="time" id="arrival_time" name="arrival_time" value="{{ form.arrival_time or '' }}" required>
+            {{ field_error(errors, 'arrival_time') }}
+        </div>
+    </div>
+    <datalist id="admin-cities">
+        {% for city, airport in airports.items() %}<option value="{{ city }}" data-airport="{{ airport }}">{% endfor %}
+    </datalist>
+</fieldset>
+
+<fieldset class="panel">
+    <legend>Travel classes, prices &amp; seats</legend>
+    <p class="muted">Leave a class blank if it is not offered on this flight. If "available seats" is left empty it is set to the total seats.</p>
+    <div class="table-wrap">
+    <table class="data-table fare-edit">
+        <thead><tr><th>Class</th><th>Ticket price (KSh)</th><th>Total seats</th><th>Available seats</th>{% if booked is defined %}<th>Booked</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for c in travel_classes %}
+            {% set key = c.split()[0]|lower %}
+            <tr>
+                <td data-label="Class"><strong>{{ c }}</strong></td>
+                <td data-label="Price">
+                    <input type="number" name="price_{{ key }}" value="{{ form['price_' ~ key] or '' }}" min="1" step="1" aria-label="{{ c }} price">
+                    {{ field_error(errors, 'price_' ~ key) }}
+                </td>
+                <td data-label="Total seats">
+                    <input type="number" name="total_{{ key }}" value="{{ form['total_' ~ key] or '' }}" min="1" step="1" aria-label="{{ c }} total seats">
+                    {{ field_error(errors, 'total_' ~ key) }}
+                </td>
+                <td data-label="Available">
+                    <input type="number" name="available_{{ key }}" value="{{ form['available_' ~ key] if form['available_' ~ key] is not none else '' }}" min="0" step="1" aria-label="{{ c }} available seats">
+                    {{ field_error(errors, 'available_' ~ key) }}
+                </td>
+                {% if booked is defined %}<td data-label="Booked">{{ booked.get(c, 0) }}</td>{% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</fieldset>

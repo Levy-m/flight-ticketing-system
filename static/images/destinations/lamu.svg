@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of Lamu">
+  <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fc3f7"/><stop offset="1" stop-color="#e1f5fe"/></linearGradient></defs>
+  <rect width="800" height="450" fill="url(#s)"/>
+  <circle cx="620" cy="140" r="60" fill="#ffe082" opacity=".9"/>
+  <g fill="#fff" opacity=".6"><ellipse cx="160" cy="90" rx="90" ry="16"/><ellipse cx="420" cy="60" rx="70" ry="12"/></g>
+  <path d="M0 300 Q 200 285 400 300 T 800 300 L800 450 L0 450Z" fill="#1aa3c8"/><path d="M0 330 Q 200 318 400 330 T 800 330 L800 450 L0 450Z" fill="#128bb0"/><path d="M0 370 Q 300 340 800 380 L800 450 L0 450Z" fill="#f3d9a4"/><g transform="translate(60 250)"><rect x="0" y="20" width="60" height="80" fill="#fff8ec"/><rect x="22" y="50" width="16" height="22" fill="#6b3f1d"/><rect x="65" y="0" width="60" height="100" fill="#fff8ec"/><rect x="87" y="30" width="16" height="22" fill="#6b3f1d"/><rect x="130" y="30" width="60" height="70" fill="#fff8ec"/><rect x="152" y="60" width="16" height="22" fill="#6b3f1d"/><rect x="195" y="10" width="60" height="90" fill="#fff8ec"/><rect x="217" y="40" width="16" height="22" fill="#6b3f1d"/></g><g transform="translate(470 300)"><path d="M-60 0 L60 0 L40 18 L-45 18Z" fill="#6b3f1d"/><path d="M0 0 L0 -90" stroke="#4a2c14" stroke-width="4"/><path d="M0 -88 L-70 -10 L5 -10Z" fill="#fdf6e3"/></g>
+  <rect x="0" y="390" width="800" height="60" fill="#f3d9a4" opacity=".0"/>
+</svg>
