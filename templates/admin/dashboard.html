@@ -15,7 +15,7 @@
 
     <section class="panel">
         <div class="panel-head">
-            <h2>Flight schedule &mdash; next 3 days</h2>
+            <h2>Upcoming departures</h2>
             <a href="{{ url_for('admin_flights') }}" class="btn btn-sm btn-outline">All flights</a>
         </div>
         {% if schedule %}
@@ -36,7 +36,7 @@
             </tbody>
         </table>
         </div>
-        {% else %}<p class="muted">No flights scheduled in the next 3 days.</p>{% endif %}
+        {% else %}<p class="muted">No flights scheduled in the next few days.</p>{% endif %}
     </section>
 
     <div class="two-col">

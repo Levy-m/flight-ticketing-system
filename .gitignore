@@ -7,3 +7,6 @@ instance/*
 *.db
 *.db-journal
 .DS_Store
+
+# Report, diagrams and screenshots are submitted separately
+docs/

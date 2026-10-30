@@ -753,13 +753,13 @@ def register_admin_routes(app):
                 "SELECT COALESCE(SUM(total_cost), 0) FROM bookings WHERE booking_status = 'Confirmed'").fetchone()[0],
             "messages": db.execute("SELECT COUNT(*) FROM contact_messages").fetchone()[0],
         }
-        schedule = db.execute(
+        schedule = [f for f in db.execute(
             """SELECT f.*, SUM(fa.total_seats) AS total_seats, SUM(fa.available_seats) AS available_seats
                FROM flights f JOIN flight_fares fa ON fa.flight_id = f.flight_id
                WHERE f.departure_date BETWEEN ? AND ?
                GROUP BY f.flight_id ORDER BY f.departure_date, f.departure_time""",
             (t, (today() + timedelta(days=2)).isoformat()),
-        ).fetchall()
+        ).fetchall() if not has_departed(f)][:12]
         recent = db.execute(BOOKING_SELECT + " ORDER BY b.booking_date DESC LIMIT 5").fetchall()
         messages = db.execute("SELECT * FROM contact_messages ORDER BY submission_date DESC LIMIT 5").fetchall()
         return render_template("admin/dashboard.html", stats=stats, schedule=schedule, recent=recent,
