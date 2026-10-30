@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field_error %}
+{% block title %}Create Account{% endblock %}
+{% block content %}
+<div class="container narrow">
+    <form class="panel login-card" method="post" action="{{ url_for('customer_register') }}" novalidate data-validate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <img src="{{ url_for('static', filename='images/airline_logo.svg') }}" alt="SkyLink Airlines logo" width="56" height="56">
+        <h1>Create an account</h1>
+        <p class="muted">Your details are filled in for you when you book, and your bookings stay with your account.</p>
+        <div class="form-group {{ 'has-error' if errors.full_name }}">
+            <label for="full_name">Full name <span class="req">*</span></label>
+            <input type="text" id="full_name" name="full_name" value="{{ form.full_name }}" maxlength="100" required autocomplete="name">
+            {{ field_error(errors, 'full_name') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.email }}">
+            <label for="email">Email address <span class="req">*</span></label>
+            <input type="email" id="email" name="email" value="{{ form.email }}" maxlength="120" required autocomplete="email">
+            {{ field_error(errors, 'email') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.phone }}">
+            <label for="phone">Phone number <span class="req">*</span></label>
+            <input type="tel" id="phone" name="phone" value="{{ form.phone }}" maxlength="16" required autocomplete="tel" placeholder="+254 712 345 678">
+            {{ field_error(errors, 'phone') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.password }}">
+            <label for="password">Password <span class="req">*</span></label>
+            <input type="password" id="password" name="password" minlength="8" required autocomplete="new-password">
+            {{ field_error(errors, 'password') }}
+        </div>
+        <div class="form-group {{ 'has-error' if errors.confirm_password }}">
+            <label for="confirm_password">Confirm password <span class="req">*</span></label>
+            <input type="password" id="confirm_password" name="confirm_password" minlength="8" required autocomplete="new-password">
+            {{ field_error(errors, 'confirm_password') }}
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Create account</button>
+        <p class="muted small">Already have an account? <a href="{{ url_for('customer_login') }}">Sign in</a></p>
+    </form>
+</div>
+{% endblock %}

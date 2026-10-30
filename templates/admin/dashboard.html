@@ -26,7 +26,7 @@
             {% for f in schedule %}
                 <tr>
                     <td data-label="Date">{{ f.departure_date|nicedate('%a %d %b') }}</td>
-                    <td data-label="Flight"><a href="{{ url_for('admin_edit_flight', flight_id=f.flight_id) }}" class="flight-no">{{ f.flight_number }}</a></td>
+                    <td data-label="Flight">{% if staff_role == 'admin' %}<a href="{{ url_for('admin_edit_flight', flight_id=f.flight_id) }}" class="flight-no">{{ f.flight_number }}</a>{% else %}<span class="flight-no">{{ f.flight_number }}</span>{% endif %}</td>
                     <td data-label="Route">{{ f.departure_city }} &rarr; {{ f.destination_city }}</td>
                     <td data-label="Departs">{{ f.departure_time|time12 }}</td>
                     <td data-label="Arrives">{{ f.arrival_time|time12 }}</td>

@@ -29,6 +29,7 @@ class FlightTicketingTestCase(unittest.TestCase):
             "SECRET_KEY": "test-secret-key",
             "ADMIN_USERNAME": "admin",
             "ADMIN_PASSWORD": "TestPass123",
+            "SEED_MOCK_TRAFFIC": False,  # keeps each test's fresh database small and fast
         })
         self.client = self.app.test_client()
         # Prime a CSRF token in the session (as the browser would after loading any form).
@@ -67,7 +68,7 @@ class FlightTicketingTestCase(unittest.TestCase):
     def booking_data(self, **overrides):
         data = {"full_name": "Test Passenger", "email": "test.passenger@example.com",
                 "phone": "+254 700 123 456", "identification_number": "12345678",
-                "travel_class": "Economy", "passengers": "2", "payment": "mpesa", "terms": "1"}
+                "travel_class": "Economy", "passengers": "2", "payment": "office", "terms": "1"}
         data.update(overrides)
         return data
 
@@ -111,13 +112,31 @@ class FlightTicketingTestCase(unittest.TestCase):
         f = self.flight()
         before = self.seats(f["flight_id"])
         r = self.post(f"/book/{f['flight_id']}", self.booking_data(), follow_redirects=True)
-        self.assertIn(b"Your booking is confirmed", r.data)
+        self.assertIn(b"Booking received", r.data)
         ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1).decode()
         row = self.db().execute("SELECT * FROM bookings WHERE booking_reference=?", (ref,)).fetchone()
         self.assertEqual(row["number_of_passengers"], 2)
         self.assertEqual(row["total_cost"], 8500 * 2)          # total = price x passengers
-        self.assertEqual(row["booking_status"], "Confirmed")
+        self.assertEqual(row["booking_status"], "Pending")      # pay at office until M-Pesa is live
         self.assertEqual(self.seats(f["flight_id"]), before - 2)
+
+    def test_mpesa_payment_is_not_selectable_yet(self):
+        f = self.flight()
+        before = self.seats(f["flight_id"])
+        r = self.client.get(f"/book/{f['flight_id']}")
+        self.assertIn(b'value="mpesa" disabled', r.data)
+        r = self.post(f"/book/{f['flight_id']}", self.booking_data(payment="mpesa"))
+        self.assertIn(b"M-Pesa payments are not available yet", r.data)
+        self.assertEqual(self.seats(f["flight_id"]), before)
+
+    def test_group_booking_gets_discount(self):
+        f = self.flight()
+        for pax, expected in [("3", 8500 * 3), ("4", 8500 * 4 * 95 // 100), ("6", 8500 * 6 * 90 // 100)]:
+            r = self.post(f"/book/{f['flight_id']}", self.booking_data(passengers=pax), follow_redirects=True)
+            ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1).decode()
+            row = self.db().execute("SELECT * FROM bookings WHERE booking_reference=?", (ref,)).fetchone()
+            self.assertEqual(row["total_cost"], expected)
+            self.assertEqual(row["price_per_ticket"], 8500)
 
     def test_exceeding_seat_capacity_is_rejected(self):
         f = self.flight("Nairobi", "Kisumu", 3)  # seeded with only 3 Economy seats
@@ -155,6 +174,60 @@ class FlightTicketingTestCase(unittest.TestCase):
         self.assertEqual(row["booking_status"], "Cancelled")        # status updated, row not deleted
         self.assertEqual(self.seats(f["flight_id"]), before + 2)     # seats released
 
+    def test_my_bookings_lists_bookings_made_this_session(self):
+        r = self.client.get("/my-bookings")
+        self.assertNotIn(b"Your bookings", r.data)
+        f = self.flight()
+        r = self.post(f"/book/{f['flight_id']}", self.booking_data(), follow_redirects=True)
+        ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1)
+        r = self.client.get("/my-bookings")
+        self.assertIn(b"Your bookings", r.data)
+        self.assertIn(ref, r.data)
+        self.assertNotIn(b"/booking/SLDEMO01", r.data)  # other people's bookings are never listed
+
+    def test_cancel_without_email_works_only_for_own_session_booking(self):
+        r = self.post("/my-bookings/cancel", {"reference": "SLDEMO01"}, follow_redirects=True)
+        self.assertIn(b"No booking matches", r.data)
+        f = self.flight()
+        r = self.post(f"/book/{f['flight_id']}", self.booking_data(), follow_redirects=True)
+        ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1).decode()
+        r = self.post("/my-bookings/cancel", {"reference": ref}, follow_redirects=True)
+        self.assertIn(b"has been cancelled", r.data)
+
+    # ---------------- 3b. customer accounts ----------------
+    def register(self, email="mary.atieno@example.com"):
+        return self.post("/account/register", {"full_name": "Mary Atieno", "email": email,
+                                               "phone": "+254 711 222 333", "password": "Secret123",
+                                               "confirm_password": "Secret123"}, follow_redirects=True)
+
+    def test_customer_bookings_follow_the_account_across_sessions(self):
+        self.assertIn(b"Welcome, Mary Atieno", self.register().data)
+        f = self.flight()
+        r = self.client.get(f"/book/{f['flight_id']}")
+        self.assertIn(b'value="mary.atieno@example.com"', r.data)  # booking form is prefilled
+        r = self.post(f"/book/{f['flight_id']}", self.booking_data(email="mary.atieno@example.com"),
+                      follow_redirects=True)
+        ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1)
+        self.post("/account/logout")
+        self.assertNotIn(ref, self.client.get("/my-bookings").data)
+        r = self.post("/account/login", {"email": "MARY.ATIENO@example.com", "password": "Secret123"},
+                      follow_redirects=True)
+        self.assertIn(b"Welcome back", r.data)
+        self.assertIn(ref, r.data)
+        self.assertEqual(self.client.get(f"/booking/{ref.decode()}").status_code, 200)
+
+    def test_registering_with_someone_elses_email_does_not_expose_their_bookings(self):
+        r = self.register(email="jane.wanjiru@example.com")  # owner of SLDEMO01
+        self.assertNotIn(b"/booking/SLDEMO01", r.data)
+        self.assertEqual(self.client.get("/booking/SLDEMO01").status_code, 302)
+
+    def test_duplicate_registration_and_wrong_password_rejected(self):
+        self.register()
+        self.post("/account/logout")
+        self.assertIn(b"already exists", self.register().data)
+        r = self.post("/account/login", {"email": "mary.atieno@example.com", "password": "nope"})
+        self.assertIn(b"Invalid email or password", r.data)
+
     # ---------------- 4. admin ----------------
     def test_admin_pages_require_login(self):
         for url in ["/admin", "/admin/flights", "/admin/flights/add", "/admin/bookings"]:
@@ -163,6 +236,79 @@ class FlightTicketingTestCase(unittest.TestCase):
             self.assertIn("/admin/login", r.headers["Location"])
         r = self.post("/admin/flights/1/delete")
         self.assertIn("/admin/login", r.headers["Location"])
+
+    def login_agent(self):
+        return self.post("/admin/login", {"username": "agent", "password": "Agent@2026"})
+
+    def test_agent_can_manage_bookings_but_not_flights_or_staff(self):
+        self.login_agent()
+        for url in ["/admin", "/admin/flights", "/admin/bookings", "/admin/messages"]:
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+        for url in ["/admin/flights/add", "/admin/staff"]:
+            self.assertEqual(self.client.get(url).status_code, 403, url)
+        f = self.flight()
+        self.assertEqual(self.post(f"/admin/flights/{f['flight_id']}/delete").status_code, 403)
+        self.assertEqual(self.post("/admin/flights/add", self.flight_form()).status_code, 403)
+        self.assertNotIn(b"Add Flight", self.client.get("/admin").data)
+        booking = self.db().execute("SELECT booking_id FROM bookings WHERE booking_reference='SLDEMO02'").fetchone()
+        r = self.post(f"/admin/bookings/{booking['booking_id']}/status", {"action": "confirm"}, follow_redirects=True)
+        self.assertIn(b"SLDEMO02 confirmed", r.data)
+
+    def test_admin_creates_and_manages_staff(self):
+        self.login()
+        r = self.post("/admin/staff", {"username": "wanjiku", "password": "short", "role": "agent"})
+        self.assertIn(b"at least 8 characters", r.data)
+        r = self.post("/admin/staff", {"username": "wanjiku", "password": "LongEnough1", "role": "agent"},
+                      follow_redirects=True)
+        self.assertIn(b"account &#39;wanjiku&#39; created", r.data)
+        row = self.db().execute("SELECT * FROM administrators WHERE username='wanjiku'").fetchone()
+        self.assertEqual(row["role"], "agent")
+        self.post(f"/admin/staff/{row['admin_id']}", {"action": "role", "role": "admin"})
+        self.assertEqual(self.db().execute("SELECT role FROM administrators WHERE username='wanjiku'").fetchone()[0],
+                         "admin")
+        self.post(f"/admin/staff/{row['admin_id']}", {"action": "delete"})
+        self.assertIsNone(self.db().execute("SELECT 1 FROM administrators WHERE username='wanjiku'").fetchone())
+
+    def test_admin_cannot_demote_self_and_demoted_agent_loses_access_immediately(self):
+        self.login()
+        me = self.db().execute("SELECT admin_id FROM administrators WHERE username='admin'").fetchone()[0]
+        r = self.post(f"/admin/staff/{me}", {"action": "role", "role": "agent"}, follow_redirects=True)
+        self.assertIn(b"cannot change or remove your own account", r.data)
+        self.db().execute("UPDATE administrators SET role='agent' WHERE admin_id=?", (me,))
+        self.assertEqual(self.client.get("/admin/staff").status_code, 403)
+
+    def test_reports_page_for_staff_only(self):
+        self.assertEqual(self.client.get("/admin/reports").status_code, 302)
+        self.login_agent()
+        for period in ["year", "12m", "90d", "30d", "bogus"]:
+            r = self.client.get(f"/admin/reports?period={period}")
+            self.assertEqual(r.status_code, 200, period)
+        self.assertIn(b"No bookings for flights in this period", self.client.get("/admin/reports?period=30d").data)
+        # Move the demo Nairobi -> Mombasa flight (SLDEMO01, 2 passengers) into the past.
+        self.db().execute("UPDATE flights SET departure_date = ? WHERE flight_id = ?",
+                          ((date.today() - timedelta(days=3)).isoformat(), self.flight()["flight_id"]))
+        r = self.client.get("/admin/reports?period=30d")
+        self.assertIn(b"Most travelled destinations", r.data)
+        self.assertIn(b'"city": "Mombasa", "passengers": 2', r.data)
+
+    def test_mock_traffic_fills_seats_consistently(self):
+        fd, path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        try:
+            database.init_db(path)
+            db = database.connect(path)
+            # Seats sold must match the active bookings on every fare.
+            mismatch = db.execute("""
+                SELECT COUNT(*) FROM flight_fares fa WHERE fa.total_seats - fa.available_seats !=
+                    (SELECT COALESCE(SUM(number_of_passengers), 0) FROM bookings b
+                     WHERE b.flight_id = fa.flight_id AND b.travel_class = fa.travel_class
+                       AND b.booking_status != 'Cancelled')
+                AND fa.available_seats != 3""").fetchone()[0]
+            self.assertEqual(mismatch, 0)
+            self.assertGreater(db.execute("SELECT COUNT(*) FROM bookings").fetchone()[0], 1000)
+            db.close()
+        finally:
+            os.unlink(path)
 
     def test_admin_wrong_password_rejected(self):
         r = self.post("/admin/login", {"username": "admin", "password": "wrong"})

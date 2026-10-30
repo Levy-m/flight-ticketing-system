@@ -4,13 +4,19 @@
         <nav class="admin-nav">
             <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if ep == 'admin_dashboard' }}">Dashboard</a>
             <a href="{{ url_for('admin_flights') }}" class="{{ 'active' if ep in ['admin_flights', 'admin_edit_flight'] }}">Flights</a>
+            {% if staff_role == 'admin' %}
             <a href="{{ url_for('admin_add_flight') }}" class="{{ 'active' if ep == 'admin_add_flight' }}">Add Flight</a>
+            {% endif %}
             <a href="{{ url_for('admin_bookings') }}" class="{{ 'active' if ep == 'admin_bookings' }}">Bookings</a>
             <a href="{{ url_for('admin_messages') }}" class="{{ 'active' if ep == 'admin_messages' }}">Messages</a>
+            <a href="{{ url_for('admin_reports') }}" class="{{ 'active' if ep == 'admin_reports' }}">Reports</a>
+            {% if staff_role == 'admin' %}
+            <a href="{{ url_for('admin_staff') }}" class="{{ 'active' if ep == 'admin_staff' }}">Staff</a>
+            {% endif %}
         </nav>
         <form method="post" action="{{ url_for('admin_logout') }}" class="inline-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <span class="muted small">Signed in as <strong>{{ session.admin_username }}</strong></span>
+            <span class="muted small">Signed in as <strong>{{ session.admin_username }}</strong> ({{ staff_roles.get(staff_role, '') }})</span>
             <button type="submit" class="btn btn-sm btn-outline-light">Log out</button>
         </form>
     </div>

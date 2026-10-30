@@ -129,6 +129,8 @@ document.addEventListener("DOMContentLoaded", function () {
         var cls = bookingForm.querySelector("#travel_class");
         var pax = bookingForm.querySelector("#passengers");
         var fmt = function (n) { return "KSh " + Number(n).toLocaleString("en-KE"); };
+        var tiersEl = document.getElementById("group-discounts");
+        var tiers = tiersEl ? JSON.parse(tiersEl.getAttribute("data-tiers")) : [];
 
         function updateTotal() {
             var opt = cls.options[cls.selectedIndex];
@@ -142,13 +144,20 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!count || count < 1) {
                 document.getElementById("sum-pax").textContent = "-";
                 document.getElementById("sum-total").textContent = "-";
+                document.getElementById("sum-discount").textContent = "-";
                 document.getElementById("sum-formula").textContent = "";
                 return;
             }
+            var pct = 0;
+            tiers.some(function (t) { if (count >= t[0]) { pct = t[1]; return true; } return false; });
+            var gross = price * count;
+            var total = Math.round(gross * (100 - pct) / 100);
             document.getElementById("sum-pax").textContent = count;
-            document.getElementById("sum-total").textContent = fmt(price * count);
+            document.getElementById("sum-discount").textContent = pct ? pct + "% (−" + fmt(gross - total) + ")" : "None";
+            document.getElementById("sum-total").textContent = fmt(total);
             document.getElementById("sum-formula").textContent =
-                fmt(price) + " × " + count + " passenger" + (count > 1 ? "s" : "") + " = " + fmt(price * count);
+                fmt(price) + " × " + count + " passenger" + (count > 1 ? "s" : "") + " = " + fmt(gross) +
+                (pct ? " − " + pct + "% group discount = " + fmt(total) : "");
         }
         cls.addEventListener("change", updateTotal);
         pax.addEventListener("input", updateTotal);

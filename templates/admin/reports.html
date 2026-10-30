@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="container">
+    <div class="admin-title-row">
+        <h1 class="admin-title">Reports</h1>
+        <form method="get" action="{{ url_for('admin_reports') }}" class="report-period">
+            <label for="period" class="muted small">Flights departing</label>
+            <select id="period" name="period" onchange="this.form.submit()">
+                {% for key, p in periods.items() %}
+                    <option value="{{ key }}" {{ 'selected' if key == period }}>{{ p[0] }}</option>
+                {% endfor %}
+            </select>
+            <noscript><button type="submit" class="btn btn-sm btn-primary">Show</button></noscript>
+        </form>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat"><span class="stat-value">{{ "{:,}".format(totals.bookings - totals.cancelled) }}</span><span class="stat-label">Active bookings</span></div>
+        <div class="stat"><span class="stat-value">{{ "{:,}".format(totals.passengers) }}</span><span class="stat-label">Passengers</span></div>
+        <div class="stat"><span class="stat-value">{{ totals.revenue|ksh }}</span><span class="stat-label">Confirmed revenue</span></div>
+        <div class="stat"><span class="stat-value">{{ (totals.revenue / totals.confirmed)|ksh if totals.confirmed else '-' }}</span><span class="stat-label">Average booking value</span></div>
+        <div class="stat"><span class="stat-value">{{ '%.1f'|format(100 * totals.cancelled / totals.bookings) ~ '%' if totals.bookings else '-' }}</span><span class="stat-label">Cancellation rate</span></div>
+    </div>
+
+    {% if not totals.bookings %}
+        <div class="empty-state"><p>No bookings for flights in this period.</p></div>
+    {% else %}
+    <div class="report-grid">
+        <section class="panel report-wide">
+            <h2>Confirmed revenue over time</h2>
+            <div class="chart-box"><canvas id="chart-trend" role="img" aria-label="Bar chart of confirmed revenue per period"></canvas></div>
+        </section>
+        <section class="panel">
+            <h2>Most travelled destinations</h2>
+            <p class="muted small">Passengers flying to each city, excluding returns to the Nairobi hub and cancelled bookings.</p>
+            <div class="chart-box chart-tall"><canvas id="chart-destinations" role="img" aria-label="Bar chart of passengers by destination"></canvas></div>
+        </section>
+        <section class="panel">
+            <h2>Seat occupancy by destination</h2>
+            <p class="muted small">Share of all seats sold on flights to each city.</p>
+            <div class="chart-box chart-tall"><canvas id="chart-occupancy" role="img" aria-label="Bar chart of seat occupancy by destination"></canvas></div>
+        </section>
+        <section class="panel">
+            <h2>Bookings by status</h2>
+            <div class="chart-box"><canvas id="chart-status" role="img" aria-label="Doughnut chart of bookings by status"></canvas></div>
+        </section>
+        <section class="panel">
+            <h2>Passengers by travel class</h2>
+            <div class="chart-box"><canvas id="chart-classes" role="img" aria-label="Doughnut chart of passengers by travel class"></canvas></div>
+        </section>
+        <section class="panel report-wide">
+            <h2>Top routes</h2>
+            <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Route</th><th>Bookings</th><th>Passengers</th><th>Confirmed revenue</th></tr></thead>
+                <tbody>
+                {% for r in routes %}
+                    <tr>
+                        <td data-label="Route">{{ r.route }}</td>
+                        <td data-label="Bookings">{{ "{:,}".format(r.bookings) }}</td>
+                        <td data-label="Passengers">{{ "{:,}".format(r.passengers) }}</td>
+                        <td data-label="Revenue">{{ r.revenue|ksh }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </section>
+    </div>
+    <script type="application/json" id="report-data">{{ report|tojson }}</script>
+    {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}

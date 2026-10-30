@@ -5,7 +5,9 @@
 <div class="container">
     <div class="admin-title-row">
         <h1 class="admin-title">Flights</h1>
+        {% if staff_role == 'admin' %}
         <a href="{{ url_for('admin_add_flight') }}" class="btn btn-accent">+ Add flight</a>
+        {% endif %}
     </div>
 
     <form class="panel filter-bar" method="get" action="{{ url_for('admin_flights') }}">
@@ -51,12 +53,14 @@
                 {% endfor %}
                 <td data-label="Bookings">{{ f.booking_count }}</td>
                 <td data-label="Actions" class="actions">
+                    {% if staff_role == 'admin' %}
                     <a href="{{ url_for('admin_edit_flight', flight_id=f.flight_id) }}" class="btn btn-sm btn-primary">Edit</a>
                     <form method="post" action="{{ url_for('admin_delete_flight', flight_id=f.flight_id) }}" class="inline-form"
                           data-confirm="Delete flight {{ f.flight_number }}? This cannot be undone.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger" {% if f.booking_count %}title="Flights with bookings cannot be deleted"{% endif %}>Delete</button>
                     </form>
+                    {% else %}<span class="muted small">View only</span>{% endif %}
                 </td>
             </tr>
         {% endfor %}

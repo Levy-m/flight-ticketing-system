@@ -36,6 +36,10 @@
                 <div><span class="info-label">Destination airport</span><span class="info-value">{{ booking.destination_airport }}</span></div>
                 <div><span class="info-label">Passengers</span><span class="info-value">{{ booking.number_of_passengers }}</span></div>
                 <div><span class="info-label">Price per ticket</span><span class="info-value">{{ booking.price_per_ticket|ksh }}</span></div>
+                {% set group_saving = booking.price_per_ticket * booking.number_of_passengers - booking.total_cost %}
+                {% if group_saving > 0 %}
+                <div><span class="info-label">Group discount</span><span class="info-value">&minus;{{ group_saving|ksh }}</span></div>
+                {% endif %}
                 <div><span class="info-label">Total ticket cost</span><span class="info-value big">{{ booking.total_cost|ksh }}</span></div>
                 <div><span class="info-label">Booking status</span><span class="info-value">{{ status_badge(booking.booking_status) }}</span></div>
                 <div><span class="info-label">Payment</span><span class="info-value">{{ booking.payment_method }}</span></div>

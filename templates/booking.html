@@ -77,9 +77,9 @@
             <legend>Payment (simulated)</legend>
             <p class="notice">This is an academic demonstration. No real payment is taken and no card details are collected.</p>
             <div class="radio-cards {{ 'has-error' if errors.payment }}">
-                <label class="radio-card">
-                    <input type="radio" name="payment" value="mpesa" {{ 'checked' if form.payment == 'mpesa' }}>
-                    <span><strong>Simulated M-Pesa</strong><br><small class="muted">Booking is confirmed immediately.</small></span>
+                <label class="radio-card radio-card-disabled" title="M-Pesa payments are coming soon">
+                    <input type="radio" name="payment" value="mpesa" disabled>
+                    <span><strong>M-Pesa</strong> <span class="badge badge-pending">Coming soon</span><br><small class="muted">Pay instantly from your phone. Not available yet.</small></span>
                 </label>
                 <label class="radio-card">
                     <input type="radio" name="payment" value="office" {{ 'checked' if form.payment == 'office' }}>
@@ -103,12 +103,16 @@
             <dt>Ticket price per passenger</dt><dd id="sum-price">-</dd>
             <dt>Number of passengers</dt><dd id="sum-pax">-</dd>
             <dt>Travel class</dt><dd id="sum-class">-</dd>
+            <dt>Group discount</dt><dd id="sum-discount">-</dd>
         </dl>
         <div class="summary-total">
             <span>Total ticket cost</span>
             <strong id="sum-total">-</strong>
         </div>
         <p class="muted small" id="sum-formula"></p>
+        <p class="muted small" id="group-discounts" data-tiers="{{ group_discounts|tojson|forceescape }}">
+            Group discount: {% for min_pax, pct in group_discounts|reverse %}{{ pct }}% off for {{ min_pax }}+ passengers{{ ', ' if not loop.last }}{% endfor %}.
+        </p>
         <button type="submit" class="btn btn-accent btn-block btn-lg">Confirm Booking</button>
         <a href="{{ url_for('flight_details', flight_id=flight.flight_id) }}" class="btn btn-outline btn-block">Back to flight</a>
     </aside>

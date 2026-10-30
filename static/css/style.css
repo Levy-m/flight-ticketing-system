@@ -87,6 +87,9 @@ h3 { font-size: 1.15rem; }
 }
 .main-nav a:hover { background: rgba(255, 255, 255, .1); color: var(--white); text-decoration: none; }
 .main-nav a.active { background: var(--sky); color: var(--white); }
+.nav-account { display: flex; align-items: center; gap: .4rem; color: #d6e4f5; padding: 0 .5rem; font-size: .92rem; }
+.nav-account button { background: none; border: 1px solid rgba(255, 255, 255, .4); color: var(--white); border-radius: 6px; padding: .3rem .6rem; cursor: pointer; font: inherit; }
+.nav-account button:hover { background: rgba(255, 255, 255, .1); }
 .main-nav a.nav-admin { border: 1px solid var(--accent); color: var(--accent); }
 
 .nav-toggle {
@@ -269,6 +272,7 @@ legend + * { clear: both; }
     cursor: pointer;
 }
 .radio-card:has(input:checked) { border-color: var(--sky); background: var(--sky-light); }
+.radio-card-disabled { opacity: .55; cursor: not-allowed; background: var(--bg); }
 
 /* ---------- Panels, banners, sections ---------- */
 .panel {
@@ -556,6 +560,25 @@ legend + * { clear: both; }
 /* ---------- My bookings / info ---------- */
 .lookup-form { margin-bottom: 1.5rem; }
 .info-panel ul { padding-left: 1.2rem; margin: 0; }
+.my-bookings-list { margin-bottom: 1.5rem; }
+.my-bookings-list h2 { margin-top: 0; }
+.my-bookings-list ul { list-style: none; padding: 0; margin: 0; }
+.my-bookings-list li + li { border-top: 1px solid var(--border); }
+.my-bookings-list a { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; padding: .75rem .25rem; color: inherit; text-decoration: none; }
+.my-bookings-list a:hover { background: var(--sky-light); }
+.my-bookings-list .badge { margin-left: auto; }
+
+/* ---------- Admin reports ---------- */
+.report-period { display: flex; align-items: center; gap: .5rem; }
+.report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 2rem; }
+.report-grid .panel { margin: 0; min-width: 0; }
+.report-grid h2 { margin-top: 0; font-size: 1.1rem; }
+.report-wide { grid-column: 1 / -1; }
+.chart-box { position: relative; height: 280px; }
+.chart-box.chart-tall { height: 340px; }
+@media (max-width: 800px) {
+    .report-grid { grid-template-columns: 1fr; }
+}
 
 /* ---------- About & contact ---------- */
 .about-intro { display: grid; grid-template-columns: 1.3fr 1fr; gap: 2rem; align-items: center; margin-bottom: 2rem; }

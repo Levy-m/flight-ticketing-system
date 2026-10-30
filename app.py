@@ -9,12 +9,13 @@ import hmac
 import os
 import re
 import secrets
+import sqlite3
 from datetime import date, datetime, timedelta
 from functools import wraps
 
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import database
 from database import (AIRPORTS, BOOKING_STATUSES, TRAVEL_CLASSES, get_db,
@@ -24,16 +25,22 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 MAX_PASSENGERS_PER_BOOKING = 9
 CANCELLATION_CUTOFF_HOURS = 24
+# Staff roles: admins manage everything; agents handle bookings and messages only.
+STAFF_ROLES = {"admin": "Administrator", "agent": "Booking agent"}
+# Group discounts as (minimum passengers, percent off), largest group first.
+GROUP_DISCOUNTS = [(6, 10), (4, 5)]
 PAYMENT_METHODS = {
-    "mpesa": ("Simulated M-Pesa", "Confirmed"),
     "office": ("Pay at airline office", "Pending"),
 }
+# Shown on the booking form but not selectable yet (awaiting the M-Pesa Daraja integration).
+UNAVAILABLE_PAYMENT_METHODS = {"mpesa": "M-Pesa payments are not available yet. Please choose Pay at airline office."}
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'-]{1,98}[A-Za-z.]$")
 PHONE_RE = re.compile(r"^\+?[0-9 ]{9,16}$")
 ID_RE = re.compile(r"^[A-Za-z0-9]{5,20}$")
 FLIGHT_NO_RE = re.compile(r"^[A-Z]{2}[0-9]{2,4}$")
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,30}$")
 REFERENCE_RE = re.compile(r"^[A-Z0-9]{6,10}$")
 REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I confusion
 
@@ -86,7 +93,7 @@ def create_app(test_config=None):
     database.init_app(app)
     if not app.config.get("SKIP_DB_INIT"):
         database.init_db(app.config["DATABASE"], app.config["ADMIN_USERNAME"],
-                         app.config["ADMIN_PASSWORD"])
+                         app.config["ADMIN_PASSWORD"], mock_traffic=app.config.get("SEED_MOCK_TRAFFIC", True))
 
     register_template_helpers(app)
     register_security(app)
@@ -141,6 +148,15 @@ def has_departed(flight):
     return departure_datetime(flight) <= datetime.now()
 
 
+def group_discount_percent(passengers):
+    return next((pct for min_pax, pct in GROUP_DISCOUNTS if passengers >= min_pax), 0)
+
+
+def booking_total(price, passengers):
+    """Total cost after any group discount, rounded to the nearest shilling."""
+    return round(price * passengers * (100 - group_discount_percent(passengers)) / 100)
+
+
 def can_cancel(booking):
     """Cancellation rule: active bookings may be cancelled up to 24 hours before departure."""
     if booking["booking_status"] == "Cancelled":
@@ -177,12 +193,59 @@ def get_booking_by_reference(reference):
     return get_db().execute(BOOKING_SELECT + " WHERE b.booking_reference = ?", (reference,)).fetchone()
 
 
+def get_my_bookings():
+    """Bookings on the signed-in customer's account plus any made or verified this session."""
+    refs = session.get("my_refs", [])
+    where, params = [], []
+    if refs:
+        where.append(f"b.booking_reference IN ({','.join('?' * len(refs))})")
+        params += refs
+    if session.get("customer_id"):
+        where.append("b.customer_id = ?")
+        params.append(session["customer_id"])
+    if not where:
+        return []
+    return get_db().execute(
+        BOOKING_SELECT + " WHERE " + " OR ".join(where) + " ORDER BY b.booking_date DESC", params,
+    ).fetchall()
+
+
+def owns_booking(booking):
+    """True when the visitor made/verified this booking this session, or it is on their account."""
+    return booking["booking_reference"] in session.get("my_refs", []) or (
+        session.get("customer_id") is not None and booking["customer_id"] == session["customer_id"])
+
+
+def claim_session_bookings(customer_id):
+    """Attach bookings this visitor has already proven they own to their account."""
+    refs = session.get("my_refs", [])
+    if refs:
+        get_db().execute(
+            f"UPDATE bookings SET customer_id = ? WHERE customer_id IS NULL "
+            f"AND booking_reference IN ({','.join('?' * len(refs))})", [customer_id] + refs,
+        )
+
+
+def start_customer_session(customer):
+    # New session on sign-in (prevents session fixation) but keep the CSRF token
+    # and the bookings already proven this visit.
+    keep = {k: session[k] for k in ("_csrf_token", "my_refs") if k in session}
+    session.clear()
+    session.update(keep)
+    session.permanent = True
+    session["customer_id"] = customer["customer_id"]
+    session["customer_name"] = customer["full_name"]
+    claim_session_bookings(customer["customer_id"])
+
+
 def remember_booking(reference):
     """Record in the session that this visitor has proven they own a booking."""
     refs = session.get("my_refs", [])
     if reference not in refs:
         refs = (refs + [reference])[-20:]
     session["my_refs"] = refs
+    if session.get("customer_id"):
+        claim_session_bookings(session["customer_id"])
 
 
 def cancel_booking(db, booking):
@@ -242,6 +305,9 @@ def register_template_helpers(app):
             "today_iso": date.today().isoformat(),
             "travel_classes": TRAVEL_CLASSES,
             "is_admin": bool(session.get("admin_id")),
+            "staff_role": g.get("staff_role"),
+            "customer_name": session.get("customer_name"),
+            "staff_roles": STAFF_ROLES,
         }
 
 
@@ -276,14 +342,36 @@ def register_security(app):
 
 
 def admin_required(view):
+    """Any signed-in staff member (admin or agent)."""
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get("admin_id"):
+        # The role is re-read on every request, so a changed role or a removed
+        # account takes effect immediately rather than at next login.
+        staff = None
+        if session.get("admin_id"):
+            staff = get_db().execute("SELECT admin_id, username, role FROM administrators WHERE admin_id = ?",
+                                     (session["admin_id"],)).fetchone()
+        if staff is None:
+            session.pop("admin_id", None)
+            session.pop("admin_username", None)
             flash("Please log in as an administrator to continue.", "error")
             return redirect(url_for("admin_login", next=request.path))
-        g.admin_username = session.get("admin_username")
+        g.admin_username = staff["username"]
+        g.staff_role = staff["role"]
         return view(*args, **kwargs)
     return wrapped
+
+
+def role_required(role):
+    """Restrict a view to one staff role. Apply below @admin_required."""
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if g.get("staff_role") != role:
+                abort(403)
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 # --------------------------------------------------------------------------- #
@@ -441,9 +529,15 @@ def register_public_routes(app):
             "identification_number": source.get("identification_number", "").strip().upper(),
             "travel_class": source.get("travel_class", next(iter(fares), "Economy")),
             "passengers": source.get("passengers", "1"),
-            "payment": source.get("payment", "mpesa"),
+            "payment": source.get("payment", "office"),
             "terms": source.get("terms"),
         }
+        if request.method == "GET" and session.get("customer_id"):
+            customer = db.execute("SELECT * FROM customers WHERE customer_id = ?",
+                                  (session["customer_id"],)).fetchone()
+            if customer:
+                for key in ("full_name", "email", "phone"):
+                    form[key] = form[key] or customer[key]
         errors = {}
 
         if has_departed(flight):
@@ -479,7 +573,9 @@ def register_public_routes(app):
             elif fare is not None and passengers > fare["available_seats"]:
                 errors["passengers"] = (f"Only {fare['available_seats']} {fare['travel_class']} seat(s) "
                                         "are available on this flight.")
-            if form["payment"] not in PAYMENT_METHODS:
+            if form["payment"] in UNAVAILABLE_PAYMENT_METHODS:
+                errors["payment"] = UNAVAILABLE_PAYMENT_METHODS[form["payment"]]
+            elif form["payment"] not in PAYMENT_METHODS:
                 errors["payment"] = "Please choose a payment option."
             if not form["terms"]:
                 errors["terms"] = "You must accept the terms and conditions."
@@ -521,11 +617,11 @@ def register_public_routes(app):
                         db.execute(
                             """INSERT INTO bookings (booking_reference, passenger_id, flight_id,
                                    number_of_passengers, travel_class, price_per_ticket, total_cost,
-                                   payment_method, booking_status, booking_date)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                   payment_method, booking_status, booking_date, customer_id)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                             (reference, passenger_id, flight_id, passengers, fare["travel_class"], price,
-                             price * passengers, payment_label, status,
-                             datetime.now().isoformat(sep=" ", timespec="seconds")),
+                             booking_total(price, passengers), payment_label, status,
+                             datetime.now().isoformat(sep=" ", timespec="seconds"), session.get("customer_id")),
                         )
                 except ValueError:
                     flash("Sorry, those seats were just taken. Please choose fewer passengers or another flight.",
@@ -537,19 +633,19 @@ def register_public_routes(app):
                 return redirect(url_for("booking_confirmation", reference=reference))
 
         return render_template("booking.html", flight=flight, fares=fares, form=form, errors=errors,
-                               max_passengers=MAX_PASSENGERS_PER_BOOKING)
+                               max_passengers=MAX_PASSENGERS_PER_BOOKING, group_discounts=GROUP_DISCOUNTS)
 
     @app.route("/booking/<reference>")
     def booking_confirmation(reference):
         reference = reference.upper()
-        # Only someone who made the booking (or verified it with their email) may view it.
-        if reference not in session.get("my_refs", []):
+        booking = get_booking_by_reference(reference)
+        # Only someone who made the booking, verified it with their email, or holds it
+        # on their account may view it. Same response whether or not it exists.
+        if booking is None or not owns_booking(booking):
             flash("Please verify your booking with your reference and email address.", "error")
             return redirect(url_for("my_bookings"))
-        booking = get_booking_by_reference(reference)
-        if booking is None:
-            abort(404)
-        return render_template("booking_confirmation.html", booking=booking, cancellable=can_cancel(booking))
+        return render_template("booking_confirmation.html", booking=booking, cancellable=can_cancel(booking),
+                               cutoff=CANCELLATION_CUTOFF_HOURS)
 
     @app.route("/my-bookings", methods=["GET", "POST"])
     def my_bookings():
@@ -572,6 +668,7 @@ def register_public_routes(app):
                 else:
                     flash("No booking matches those details. Please check and try again.", "error")
         return render_template("my_bookings.html", booking=booking, reference=reference, email=email,
+                               my_bookings=get_my_bookings(),
                                cancellable=booking is not None and can_cancel(booking),
                                cutoff=CANCELLATION_CUTOFF_HOURS)
 
@@ -580,7 +677,13 @@ def register_public_routes(app):
         reference = request.form.get("reference", "").strip().upper()
         email = request.form.get("email", "").strip()
         booking = get_booking_by_reference(reference) if reference else None
-        if booking is None or not email or booking["email"].lower() != email.lower():
+        # Ownership is proven either by a matching email or by having made/verified
+        # the booking earlier in this session.
+        verified = booking is not None and (
+            owns_booking(booking)
+            or (email and hmac.compare_digest(booking["email"].lower(), email.lower()))
+        )
+        if not verified:
             flash("No booking matches those details.", "error")
             return redirect(url_for("my_bookings"))
         if not can_cancel(booking):
@@ -593,6 +696,61 @@ def register_public_routes(app):
             flash(f"Booking {reference} has been cancelled and the seats have been released.", "success")
         remember_booking(reference)
         return redirect(url_for("booking_confirmation", reference=reference))
+
+    @app.route("/account/register", methods=["GET", "POST"])
+    def customer_register():
+        if session.get("customer_id"):
+            return redirect(url_for("my_bookings"))
+        form = {k: request.form.get(k, "").strip() for k in ("full_name", "email", "phone")}
+        errors = {}
+        if request.method == "POST":
+            password = request.form.get("password", "")
+            if not NAME_RE.match(form["full_name"]):
+                errors["full_name"] = "Enter a valid name using letters only (3-100 characters)."
+            if not EMAIL_RE.match(form["email"]) or len(form["email"]) > 120:
+                errors["email"] = "Enter a valid email address, e.g. name@example.com."
+            if not PHONE_RE.match(form["phone"]):
+                errors["phone"] = "Enter a valid phone number, e.g. +254 712 345 678."
+            if len(password) < 8:
+                errors["password"] = "Password must be at least 8 characters."
+            elif password != request.form.get("confirm_password", ""):
+                errors["confirm_password"] = "Passwords do not match."
+            if not errors:
+                db = get_db()
+                try:
+                    customer_id = db.execute(
+                        "INSERT INTO customers (full_name, email, phone, password_hash) VALUES (?, ?, ?, ?)",
+                        (form["full_name"], form["email"].lower(), form["phone"], generate_password_hash(password)),
+                    ).lastrowid
+                except sqlite3.IntegrityError:
+                    errors["email"] = "An account with this email already exists. Please sign in."
+                else:
+                    start_customer_session({"customer_id": customer_id, "full_name": form["full_name"]})
+                    flash(f"Welcome, {form['full_name']}! Your account has been created.", "success")
+                    return redirect(url_for("my_bookings"))
+            flash("Please correct the errors highlighted below.", "error")
+        return render_template("account/register.html", form=form, errors=errors)
+
+    @app.route("/account/login", methods=["GET", "POST"])
+    def customer_login():
+        if session.get("customer_id"):
+            return redirect(url_for("my_bookings"))
+        email = request.form.get("email", "").strip()
+        if request.method == "POST":
+            customer = get_db().execute("SELECT * FROM customers WHERE email = ?", (email,)).fetchone()
+            if customer and check_password_hash(customer["password_hash"], request.form.get("password", "")):
+                start_customer_session(customer)
+                flash(f"Welcome back, {customer['full_name']}.", "success")
+                return redirect(url_for("my_bookings"))
+            flash("Invalid email or password.", "error")
+        return render_template("account/login.html", email=email)
+
+    @app.route("/account/logout", methods=["POST"])
+    def customer_logout():
+        for key in ("customer_id", "customer_name", "my_refs"):
+            session.pop(key, None)
+        flash("You have been signed out.", "success")
+        return redirect(url_for("index"))
 
     @app.route("/about")
     def about():
@@ -805,6 +963,7 @@ def register_admin_routes(app):
 
     @app.route("/admin/flights/add", methods=["GET", "POST"])
     @admin_required
+    @role_required("admin")
     def admin_add_flight():
         form, errors = request.form, {}
         if request.method == "POST":
@@ -842,6 +1001,7 @@ def register_admin_routes(app):
 
     @app.route("/admin/flights/<int:flight_id>/edit", methods=["GET", "POST"])
     @admin_required
+    @role_required("admin")
     def admin_edit_flight(flight_id):
         db = get_db()
         flight = db.execute("SELECT * FROM flights WHERE flight_id = ?", (flight_id,)).fetchone()
@@ -899,6 +1059,7 @@ def register_admin_routes(app):
 
     @app.route("/admin/flights/<int:flight_id>/delete", methods=["POST"])
     @admin_required
+    @role_required("admin")
     def admin_delete_flight(flight_id):
         db = get_db()
         flight = db.execute("SELECT * FROM flights WHERE flight_id = ?", (flight_id,)).fetchone()
@@ -958,6 +1119,123 @@ def register_admin_routes(app):
         return redirect(request.referrer if request.referrer and "/admin/bookings" in request.referrer
                         else url_for("admin_bookings"))
 
+    @app.route("/admin/reports")
+    @admin_required
+    def admin_reports():
+        db = get_db()
+        t = today()
+        periods = {
+            "year": (f"This year to date ({t.year})", date(t.year, 1, 1), t, "%Y-%m"),
+            "12m": ("Last 12 months", t - timedelta(days=365), t, "%Y-%m"),
+            "90d": ("Last 90 days", t - timedelta(days=90), t, "%Y-W%W"),
+            "30d": ("Last 30 days", t - timedelta(days=30), t, "%Y-%m-%d"),
+        }
+        period = request.args.get("period", "year")
+        if period not in periods:
+            period = "year"
+        _label, start, end, bucket = periods[period]
+        # Everything is measured by departure date: what actually flew (or will fly) in the period.
+        scope = """FROM bookings b JOIN flights f ON f.flight_id = b.flight_id
+                   WHERE f.departure_date BETWEEN ? AND ?"""
+        params = (start.isoformat(), end.isoformat())
+
+        def rows(sql):
+            return [dict(r) for r in db.execute(sql, params).fetchall()]
+
+        totals = db.execute(f"""
+            SELECT COUNT(*) AS bookings,
+                   COALESCE(SUM(CASE WHEN b.booking_status != 'Cancelled' THEN b.number_of_passengers END), 0) AS passengers,
+                   COALESCE(SUM(CASE WHEN b.booking_status = 'Confirmed' THEN b.total_cost END), 0) AS revenue,
+                   COUNT(CASE WHEN b.booking_status = 'Confirmed' THEN 1 END) AS confirmed,
+                   COUNT(CASE WHEN b.booking_status = 'Cancelled' THEN 1 END) AS cancelled
+            {scope}""", params).fetchone()
+        report = {
+            "trend": rows(f"""
+                SELECT strftime('{bucket}', f.departure_date) AS bucket,
+                       COALESCE(SUM(CASE WHEN b.booking_status = 'Confirmed' THEN b.total_cost END), 0) AS revenue,
+                       COALESCE(SUM(CASE WHEN b.booking_status != 'Cancelled' THEN b.number_of_passengers END), 0) AS passengers
+                {scope} GROUP BY bucket ORDER BY bucket"""),
+            "destinations": rows(f"""
+                SELECT f.destination_city AS city, SUM(b.number_of_passengers) AS passengers,
+                       COUNT(*) AS bookings
+                {scope} AND b.booking_status != 'Cancelled' AND f.destination_city != 'Nairobi'
+                GROUP BY city ORDER BY passengers DESC LIMIT 10"""),
+            "status": rows(f"""
+                SELECT b.booking_status AS status, COUNT(*) AS bookings
+                {scope} GROUP BY status"""),
+            "classes": rows(f"""
+                SELECT b.travel_class AS travel_class, SUM(b.number_of_passengers) AS passengers
+                {scope} AND b.booking_status != 'Cancelled' GROUP BY travel_class"""),
+            "occupancy": [dict(r) for r in db.execute("""
+                SELECT f.destination_city AS city,
+                       ROUND(100.0 * SUM(fa.total_seats - fa.available_seats) / SUM(fa.total_seats), 1) AS percent
+                FROM flight_fares fa JOIN flights f ON f.flight_id = fa.flight_id
+                WHERE f.departure_date BETWEEN ? AND ?
+                GROUP BY city HAVING SUM(fa.total_seats) > 0 ORDER BY percent DESC""", params).fetchall()],
+        }
+        routes = rows(f"""
+            SELECT f.departure_city || ' → ' || f.destination_city AS route, COUNT(*) AS bookings,
+                   SUM(b.number_of_passengers) AS passengers,
+                   COALESCE(SUM(CASE WHEN b.booking_status = 'Confirmed' THEN b.total_cost END), 0) AS revenue
+            {scope} AND b.booking_status != 'Cancelled'
+            GROUP BY route ORDER BY passengers DESC LIMIT 10""")
+        return render_template("admin/reports.html", periods=periods, period=period, totals=totals,
+                               report=report, routes=routes)
+
+    @app.route("/admin/staff", methods=["GET", "POST"])
+    @admin_required
+    @role_required("admin")
+    def admin_staff():
+        db = get_db()
+        form = {k: request.form.get(k, "").strip() for k in ("username", "role")}
+        errors = {}
+        if request.method == "POST":
+            password = request.form.get("password", "")
+            if not USERNAME_RE.match(form["username"]):
+                errors["username"] = "Use 3-30 letters, numbers, dots, dashes or underscores."
+            elif db.execute("SELECT 1 FROM administrators WHERE username = ?", (form["username"],)).fetchone():
+                errors["username"] = "That username is already taken."
+            if len(password) < 8:
+                errors["password"] = "Password must be at least 8 characters."
+            if form["role"] not in STAFF_ROLES:
+                errors["role"] = "Choose a role."
+            if errors:
+                flash("Please correct the errors highlighted below.", "error")
+            else:
+                db.execute("INSERT INTO administrators (username, password_hash, role) VALUES (?, ?, ?)",
+                           (form["username"], generate_password_hash(password), form["role"]))
+                flash(f"{STAFF_ROLES[form['role']]} account '{form['username']}' created.", "success")
+                return redirect(url_for("admin_staff"))
+        staff = db.execute("SELECT admin_id, username, role, created_at FROM administrators "
+                           "ORDER BY role, username").fetchall()
+        return render_template("admin/staff.html", staff=staff, form=form, errors=errors)
+
+    @app.route("/admin/staff/<int:admin_id>", methods=["POST"])
+    @admin_required
+    @role_required("admin")
+    def admin_update_staff(admin_id):
+        db = get_db()
+        member = db.execute("SELECT * FROM administrators WHERE admin_id = ?", (admin_id,)).fetchone()
+        if member is None:
+            abort(404)
+        action, role = request.form.get("action"), request.form.get("role")
+        # Count and change inside one transaction so two admins cannot demote each other at once.
+        with transaction(db):
+            admins = db.execute("SELECT COUNT(*) FROM administrators WHERE role = 'admin'").fetchone()[0]
+            if admin_id == session.get("admin_id"):
+                flash("You cannot change or remove your own account.", "error")
+            elif member["role"] == "admin" and admins <= 1 and (action == "delete" or role != "admin"):
+                flash("At least one administrator account must remain.", "error")
+            elif action == "delete":
+                db.execute("DELETE FROM administrators WHERE admin_id = ?", (admin_id,))
+                flash(f"Account '{member['username']}' removed.", "success")
+            elif action == "role" and role in STAFF_ROLES:
+                db.execute("UPDATE administrators SET role = ? WHERE admin_id = ?", (role, admin_id))
+                flash(f"'{member['username']}' is now a {STAFF_ROLES[role].lower()}.", "success")
+            else:
+                flash("That action is not allowed.", "error")
+        return redirect(url_for("admin_staff"))
+
     @app.route("/admin/messages")
     @admin_required
     def admin_messages():
@@ -974,6 +1252,11 @@ def register_error_handlers(app):
     def bad_request(err):
         return render_template("error.html", code=400, title="Bad request",
                                message=getattr(err, "description", "")), 400
+
+    @app.errorhandler(403)
+    def forbidden(_err):
+        return render_template("error.html", code=403, title="Access denied",
+                               message="Your staff role does not allow this action."), 403
 
     @app.errorhandler(404)
     def not_found(_err):

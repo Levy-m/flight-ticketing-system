@@ -13,6 +13,7 @@ Run directly to (re)create the database:
 """
 
 import os
+import random
 import sqlite3
 import sys
 from contextlib import contextmanager
@@ -82,13 +83,24 @@ CREATE TABLE IF NOT EXISTS bookings (
     booking_date         TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     booking_status       TEXT    NOT NULL DEFAULT 'Pending'
                          CHECK (booking_status IN ('Pending', 'Confirmed', 'Cancelled')),
-    cancelled_at         TEXT
+    cancelled_at         TEXT,
+    customer_id          INTEGER REFERENCES customers(customer_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    full_name     TEXT NOT NULL,
+    email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    phone         TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS administrators (
     admin_id      INTEGER PRIMARY KEY AUTOINCREMENT,
     username      TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'agent')),
     created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -149,6 +161,19 @@ ROUTES = [
 ]
 
 SCHEDULE_DAYS = 14  # sample flights are generated for the next 14 days
+HISTORY_WEEKS = 52  # mock past flights (one day a week) so the reports have a year of data
+
+# Mock traffic: how popular each destination is, and busier months (holidays).
+DESTINATION_DEMAND = {"Mombasa": 1.0, "Zanzibar": 0.95, "Dubai": 0.85, "Nairobi": 0.8, "Malindi": 0.7,
+                      "Kisumu": 0.65, "Lamu": 0.6, "Kigali": 0.55, "Entebbe": 0.5,
+                      "Dar es Salaam": 0.5, "Eldoret": 0.4}
+MONTH_DEMAND = {1: 0.8, 2: 0.6, 3: 0.65, 4: 0.85, 5: 0.6, 6: 0.7, 7: 0.85, 8: 1.0, 9: 0.7,
+                10: 0.75, 11: 0.8, 12: 1.0}
+MOCK_FIRST_NAMES = ["Wanjiku", "Kamau", "Achieng", "Otieno", "Njeri", "Mwangi", "Fatuma", "Omondi",
+                    "Chebet", "Kiprono", "Akinyi", "Mutua", "Halima", "Baraka", "Zawadi", "Juma",
+                    "Nafula", "Wekesa", "Amani", "Imani", "Grace", "David", "Sarah", "Peter"]
+MOCK_LAST_NAMES = ["Kariuki", "Odhiambo", "Wambui", "Kiptoo", "Mohamed", "Nyambura", "Ochieng",
+                   "Mutiso", "Cherono", "Njoroge", "Abdi", "Wafula", "Kilonzo", "Atieno", "Rotich"]
 
 
 def _round100(value):
@@ -207,14 +232,24 @@ def transaction(db):
 
 def create_schema(db):
     db.executescript(SCHEMA)
+    # Databases created before staff roles existed: add the column; existing accounts stay admins.
+    columns = [r["name"] for r in db.execute("PRAGMA table_info(administrators)")]
+    if "role" not in columns:
+        db.execute("ALTER TABLE administrators ADD COLUMN role TEXT NOT NULL DEFAULT 'admin' "
+                   "CHECK (role IN ('admin', 'agent'))")
+    # ...and before customer accounts existed: bookings made then simply have no account.
+    columns = [r["name"] for r in db.execute("PRAGMA table_info(bookings)")]
+    if "customer_id" not in columns:
+        db.execute("ALTER TABLE bookings ADD COLUMN customer_id INTEGER "
+                   "REFERENCES customers(customer_id) ON DELETE SET NULL")
 
 
-def seed_admin(db, username, password):
+def seed_admin(db, username, password, role="admin"):
     exists = db.execute("SELECT 1 FROM administrators WHERE username = ?", (username,)).fetchone()
     if not exists:
         db.execute(
-            "INSERT INTO administrators (username, password_hash) VALUES (?, ?)",
-            (username, generate_password_hash(password)),
+            "INSERT INTO administrators (username, password_hash, role) VALUES (?, ?, ?)",
+            (username, generate_password_hash(password), role),
         )
 
 
@@ -316,7 +351,119 @@ def seed_demo_bookings(db):
     )
 
 
-def init_db(db_path=None, admin_username="admin", admin_password="SkyLink@2026", seed=True):
+def _insert_flight(db, number, origin, dest, dep_time, minutes, economy, international, flight_date,
+                   total_seats=None):
+    flight_id = db.execute(
+        """INSERT INTO flights (flight_number, airline_name, departure_city, departure_airport,
+                                destination_city, destination_airport, departure_date,
+                                departure_time, arrival_time, aircraft)
+           VALUES (?, 'SkyLink Airlines', ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (f"SL{number}", origin, AIRPORTS[origin], dest, AIRPORTS[dest], flight_date,
+         dep_time, _add_minutes(dep_time, minutes),
+         "Boeing 787-8 Dreamliner" if minutes > 200 else
+         ("Embraer E190" if international else "Bombardier Q400")),
+    ).lastrowid
+    fares = [("Economy", economy, 120), ("Business", _round100(economy * 2.6), 16)]
+    if international:
+        fares.append(("First Class", _round100(economy * 4.2), 8))
+    for travel_class, price, seats in fares:
+        db.execute(
+            """INSERT INTO flight_fares (flight_id, travel_class, ticket_price, total_seats, available_seats)
+               VALUES (?, ?, ?, ?, ?)""",
+            (flight_id, travel_class, price, seats, seats),
+        )
+    return flight_id
+
+
+def seed_mock_traffic(db, today=None):
+    """Fictional bookings so seat counts and reports look like a working airline.
+
+    * a year of past flights (one day a week) with completed and cancelled bookings
+    * upcoming flights partly sold: fuller the sooner they depart
+    Uses a fixed random seed, so every fresh database gets the same data.
+    """
+    rng = random.Random(2026)
+    today = today or date.today()
+    now = datetime.now()
+
+    # A pool of repeat customers.
+    pool = []
+    for i in range(160):
+        first, last = rng.choice(MOCK_FIRST_NAMES), rng.choice(MOCK_LAST_NAMES)
+        email = f"{first}.{last}{i}@example.com".lower()
+        pool.append(db.execute(
+            "INSERT INTO passengers (full_name, email, phone, identification_number) VALUES (?, ?, ?, ?)",
+            (f"{first} {last}", email, f"+254 7{rng.randint(10, 99)} {rng.randint(100, 999)} {rng.randint(100, 999)}",
+             str(rng.randint(20000000, 39999999))),
+        ).lastrowid)
+
+    # Past flights: same timetable, one day a week, numbered from SL1001.
+    number = 1001
+    for week in range(HISTORY_WEEKS, 0, -1):
+        flight_date = today - timedelta(weeks=week)
+        for origin, dest, dep_time, minutes, economy, international in ROUTES:
+            if international and week % 2:
+                continue
+            _insert_flight(db, number, origin, dest, dep_time, minutes, economy, international,
+                           flight_date.isoformat())
+            number += 1
+
+    used_refs = {r[0] for r in db.execute("SELECT booking_reference FROM bookings")}
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+    def new_ref():
+        while True:
+            ref = "SL" + "".join(rng.choice(alphabet) for _ in range(6))
+            if ref not in used_refs:
+                used_refs.add(ref)
+                return ref
+
+    # Fill every flight that has no bookings yet (leaves the hand-made demo flights alone).
+    fares = db.execute(
+        """SELECT fa.*, f.departure_date, f.departure_time, f.destination_city
+           FROM flight_fares fa JOIN flights f ON f.flight_id = fa.flight_id
+           WHERE fa.available_seats = fa.total_seats
+             AND f.flight_id NOT IN (SELECT flight_id FROM bookings)
+             AND f.flight_id NOT IN (SELECT flight_id FROM flight_fares WHERE available_seats < total_seats)"""
+    ).fetchall()
+    rows, seat_updates = [], []
+    for fare in fares:
+        dep_day = date.fromisoformat(fare["departure_date"])
+        days_ahead = (dep_day - today).days
+        demand = DESTINATION_DEMAND.get(fare["destination_city"], 0.5) * MONTH_DEMAND[dep_day.month]
+        if days_ahead > 0:  # still on sale: fewer seats sold the further away it is
+            demand *= max(0.2, 1 - days_ahead / 16)
+        load = min(0.95, demand * rng.uniform(0.55, 0.95))
+        if fare["travel_class"] != "Economy":
+            load *= rng.uniform(0.4, 0.9)
+        target, sold = int(fare["total_seats"] * load), 0
+        while sold < target:
+            pax = min(rng.choice([1, 1, 1, 2, 2, 3, 4, 5, 6]), target - sold)
+            status = rng.choices(["Confirmed", "Cancelled", "Pending"],
+                                 weights=[85, 10, 5 if days_ahead > 0 else 0])[0]
+            booked_on = datetime.combine(dep_day, datetime.min.time()) - timedelta(
+                days=rng.randint(1, 40), hours=rng.randint(0, 23), minutes=rng.randint(0, 59))
+            booked_on = min(booked_on, now - timedelta(hours=rng.randint(1, 72)))
+            discount = 10 if pax >= 6 else 5 if pax >= 4 else 0  # mirrors app.GROUP_DISCOUNTS
+            rows.append((new_ref(), rng.choice(pool), fare["flight_id"], pax, fare["travel_class"],
+                         fare["ticket_price"], round(fare["ticket_price"] * pax * (100 - discount) / 100),
+                         rng.choice(["Simulated M-Pesa"] * 3 + ["Pay at airline office"]) if status != "Pending"
+                         else "Pay at airline office", booked_on.isoformat(sep=" ", timespec="seconds"),
+                         status, (booked_on + timedelta(days=1)).isoformat(timespec="seconds")
+                         if status == "Cancelled" else None))
+            if status != "Cancelled":
+                sold += pax
+        seat_updates.append((sold, fare["fare_id"]))
+    db.executemany(
+        """INSERT INTO bookings (booking_reference, passenger_id, flight_id, number_of_passengers,
+                                 travel_class, price_per_ticket, total_cost, payment_method,
+                                 booking_date, booking_status, cancelled_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", rows)
+    db.executemany("UPDATE flight_fares SET available_seats = available_seats - ? WHERE fare_id = ?",
+                   seat_updates)
+
+
+def init_db(db_path=None, admin_username="admin", admin_password="SkyLink@2026", seed=True, mock_traffic=True):
     """Create the schema and, if the database is empty, load the sample data."""
     db_path = db_path or DEFAULT_DB_PATH
     db = connect(db_path)
@@ -328,6 +475,9 @@ def init_db(db_path=None, admin_username="admin", admin_password="SkyLink@2026",
             if seed and not has_flights:
                 seed_flights(db)
                 seed_demo_bookings(db)
+                if mock_traffic:
+                    seed_mock_traffic(db)
+                seed_admin(db, "agent", "Agent@2026", role="agent")  # demo booking agent
     finally:
         db.close()
 

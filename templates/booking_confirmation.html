@@ -12,7 +12,7 @@
         {% else %}
             <div class="confirm-check">&#10003;</div>
             <h1>Your booking is confirmed!</h1>
-            <p>Keep your booking reference <strong>{{ booking.booking_reference }}</strong> &mdash; you will need it with your email to manage this booking.</p>
+            <p>Keep your booking reference <strong>{{ booking.booking_reference }}</strong> &mdash; it also appears under My Bookings for the rest of this visit.</p>
         {% endif %}
     </div>
 
@@ -20,7 +20,15 @@
 
     <div class="ticket-actions no-print">
         <button type="button" class="btn btn-primary" data-print>&#128424; Print Ticket</button>
-        <a href="{{ url_for('my_bookings') }}" class="btn btn-outline">Manage booking</a>
+        {% if cancellable %}
+            <form method="post" action="{{ url_for('cancel_my_booking') }}" class="inline-form"
+                  data-confirm="Cancel booking {{ booking.booking_reference }}? This cannot be undone.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="reference" value="{{ booking.booking_reference }}">
+                <button type="submit" class="btn btn-danger">Cancel booking</button>
+            </form>
+        {% endif %}
+        <a href="{{ url_for('my_bookings') }}" class="btn btn-outline">My bookings</a>
         <a href="{{ url_for('index') }}" class="btn btn-outline">Back to home</a>
     </div>
 </div>

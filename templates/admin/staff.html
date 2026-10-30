@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field_error %}
+{% block title %}Staff Accounts{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="container">
+    <h1 class="admin-title">Staff accounts</h1>
+    <p class="muted">Administrators manage everything. Booking agents can view flights and dashboard figures,
+        confirm or cancel bookings and read messages, but cannot change flights or staff accounts.</p>
+
+    <div class="table-wrap">
+    <table class="data-table admin-table">
+        <thead><tr><th>Username</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for m in staff %}
+            <tr>
+                <td data-label="Username"><strong>{{ m.username }}</strong>{% if m.admin_id == session.admin_id %} <span class="muted small">(you)</span>{% endif %}</td>
+                <td data-label="Role">{{ staff_roles[m.role] }}</td>
+                <td data-label="Created">{{ m.created_at|nicedate('%d %b %Y') }}</td>
+                <td data-label="Actions" class="actions">
+                    {% if m.admin_id != session.admin_id %}
+                        <form method="post" action="{{ url_for('admin_update_staff', admin_id=m.admin_id) }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="role">
+                            <input type="hidden" name="role" value="{{ 'agent' if m.role == 'admin' else 'admin' }}">
+                            <button type="submit" class="btn btn-sm btn-primary">Make {{ staff_roles['agent' if m.role == 'admin' else 'admin']|lower }}</button>
+                        </form>
+                        <form method="post" action="{{ url_for('admin_update_staff', admin_id=m.admin_id) }}" class="inline-form"
+                              data-confirm="Remove the account {{ m.username }}? This cannot be undone.">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="delete">
+                            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                        </form>
+                    {% else %}<span class="muted small">&mdash;</span>{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    <form class="panel" method="post" action="{{ url_for('admin_staff') }}" novalidate data-validate>
+        <h2>Add a staff member</h2>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row">
+            <div class="form-group {{ 'has-error' if errors.username }}">
+                <label for="username">Username <span class="req">*</span></label>
+                <input type="text" id="username" name="username" value="{{ form.username }}" maxlength="30" required autocomplete="off">
+                {{ field_error(errors, 'username') }}
+            </div>
+            <div class="form-group {{ 'has-error' if errors.password }}">
+                <label for="password">Password <span class="req">*</span></label>
+                <input type="password" id="password" name="password" minlength="8" required autocomplete="new-password">
+                {{ field_error(errors, 'password') }}
+            </div>
+            <div class="form-group {{ 'has-error' if errors.role }}">
+                <label for="role">Role <span class="req">*</span></label>
+                <select id="role" name="role" required>
+                    {% for key, label in staff_roles.items() %}
+                        <option value="{{ key }}" {{ 'selected' if form.role == key or (not form.role and key == 'agent') }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {{ field_error(errors, 'role') }}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-accent">Create account</button>
+    </form>
+</div>
+{% endblock %}

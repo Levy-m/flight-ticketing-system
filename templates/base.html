@@ -28,6 +28,15 @@
             <a href="{{ url_for('my_bookings') }}" class="{{ 'active' if ep in ['my_bookings', 'booking_confirmation'] }}">My Bookings</a>
             <a href="{{ url_for('about') }}" class="{{ 'active' if ep == 'about' }}">About Us</a>
             <a href="{{ url_for('contact') }}" class="{{ 'active' if ep == 'contact' }}">Contact Us</a>
+            {% if customer_name %}
+                <form method="post" action="{{ url_for('customer_logout') }}" class="inline-form nav-account">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <span>Hi, {{ customer_name.split()[0] }}</span>
+                    <button type="submit">Sign out</button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('customer_login') }}" class="{{ 'active' if ep in ['customer_login', 'customer_register'] }}">Sign in</a>
+            {% endif %}
             {% if is_admin %}
                 <a href="{{ url_for('admin_dashboard') }}" class="nav-admin {{ 'active' if ep.startswith('admin') }}">Admin</a>
             {% endif %}

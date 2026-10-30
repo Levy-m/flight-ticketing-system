@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
 {% block title %}My Bookings{% endblock %}
 {% block content %}
 <section class="page-banner">
@@ -9,6 +10,26 @@
 </section>
 
 <div class="container narrow">
+    {% if my_bookings and not booking %}
+        <div class="panel my-bookings-list no-print">
+            <h2>Your bookings</h2>
+            <p class="muted">{% if customer_name %}Bookings on your account and any found during this visit.{% else %}Bookings made or found on this device during this visit. <a href="{{ url_for('customer_login') }}">Sign in</a> to keep them on every device.{% endif %}</p>
+            <ul>
+                {% for b in my_bookings %}
+                    <li>
+                        <a href="{{ url_for('booking_confirmation', reference=b.booking_reference) }}">
+                            <strong>{{ b.booking_reference }}</strong>
+                            <span>{{ b.departure_city }} &rarr; {{ b.destination_city }}</span>
+                            <span class="muted">{{ b.departure_date|nicedate }} &middot; {{ b.departure_time|time12 }}</span>
+                            {{ status_badge(b.booking_status) }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <h3 class="no-print">Looking for a different booking?</h3>
+    {% endif %}
+
     <form class="panel lookup-form no-print" method="post" action="{{ url_for('my_bookings') }}" novalidate data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-row">

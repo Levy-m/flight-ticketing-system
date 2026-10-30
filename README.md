@@ -39,7 +39,7 @@ python database.py           # create tables + sample data (only if the database
 python database.py --reset   # delete the database and rebuild it with fresh sample data
 ```
 
-Sample flights are generated for the **next 14 days from the day the database is created**. If you demonstrate the project later, run `python database.py --reset` first so the flights are in the future.
+Sample flights are generated for the **next 14 days from the day the database is created**, together with fictional mock traffic: a year of past flights with bookings (for the reports) and partly sold upcoming flights. An existing database is upgraded automatically, but the mock data is only added to a new one, so run `python database.py --reset` once to get it. If you demonstrate the project later, run `python database.py --reset` first so the flights are in the future.
 
 ## 4. Run the application
 
@@ -58,6 +58,7 @@ Then open **http://127.0.0.1:5000** in your browser.
 | Admin login page | http://127.0.0.1:5000/admin/login |
 | Admin username | `admin` |
 | Admin password | `SkyLink@2026` |
+| Booking agent login (limited role) | username `agent`, password `Agent@2026` – can manage bookings and read messages, but cannot change flights or staff |
 | Demo booking (Confirmed) | Reference `SLDEMO01`, email `jane.wanjiru@example.com` |
 | Demo booking (Pending) | Reference `SLDEMO02`, email `brian.otieno@example.com` |
 | Demo booking (Cancelled) | Reference `SLDEMO03`, email `amina.hassan@example.com` |
@@ -78,18 +79,22 @@ Other optional settings: `SECRET_KEY` (otherwise a random key is generated and s
 |--------|--------------|
 | Home page | Logo, navigation, aircraft background, flight search form, featured destinations, promotions, footer |
 | Flight search | Search by city/airport, date, return date, passengers and class; past dates blocked; "no flights" message with nearby-date suggestions |
-| Booking | Passenger, flight and booking sections; live total-cost calculation (price × passengers); full server-side validation; seat check inside a database transaction; unique booking reference |
+| Booking | Passenger, flight and booking sections; live total-cost calculation (price × passengers, minus any group discount); full server-side validation; seat check inside a database transaction; unique booking reference |
 | E-ticket | Airline-styled confirmation page with **Print Ticket** button (print stylesheet prints only the ticket) |
-| My Bookings | Retrieve by booking reference **and** email; view status; cancel (status becomes *Cancelled*, seats released, row kept) |
+| My Bookings | Lists the visitor's bookings automatically (made this visit, or on their account); retrieve others by booking reference **and** email; view status; cancel (status becomes *Cancelled*, seats released, row kept) |
+| Customer accounts | Register / sign in / sign out; booking form prefilled from the account; bookings stay with the account on any device |
 | Admin – flights | Login, dashboard with 3-day schedule, add / view / edit / delete flights, update prices and seats per class |
 | Admin – bookings | View all bookings; filter by reference, flight number, departure date, status; confirm pending or cancel bookings |
+| Admin – reports | KPIs plus charts (Chart.js, bundled for offline use): revenue over time, most travelled destinations, seat occupancy by destination, bookings by status, passengers by class, top routes; filter by period |
+| Staff roles | **Administrator** (everything, including flights and the Staff page) and **Booking agent** (dashboard, view flights, bookings, messages, reports) |
 | About / Contact | Company background, mission, vision, services, destinations; validated contact form saved to the database |
 
 ### Business rules
 - **Cancellation:** allowed online up to **24 hours before departure**. Cancelling never deletes a booking.
 - **Deleting flights:** only flights that have **never been booked** can be deleted (keeps booking history intact). Booked flights can be edited instead.
 - **Seat editing:** an admin cannot set available seats higher than *total seats − seats already booked*.
-- **Booking status:** *Simulated M-Pesa* → **Confirmed** immediately; *Pay at airline office* → **Pending** until an admin confirms it.
+- **Booking status:** *Pay at airline office* → **Pending** until staff confirm it. M-Pesa is shown on the form but disabled ("Coming soon") until the Daraja integration is added.
+- **Group discount:** 5% off for 4–5 passengers, 10% off for 6 or more (`GROUP_DISCOUNTS` in `app.py`).
 - Max 9 passengers per booking.
 
 ## 7. Database design
@@ -97,7 +102,9 @@ Other optional settings: `SECRET_KEY` (otherwise a random key is generated and s
 Database file: `flight_ticketing.db` (SQLite). Schema is defined in `database.py`.
 
 ```
-administrators (admin_id PK, username UNIQUE, password_hash)
+administrators (admin_id PK, username UNIQUE, password_hash, role 'admin'|'agent')
+
+customers (customer_id PK, full_name, email UNIQUE, phone, password_hash)   1 ──< bookings.customer_id (optional)
 
 flights (flight_id PK, flight_number UNIQUE, airline_name, departure_city, departure_airport,
          destination_city, destination_airport, departure_date, departure_time, arrival_time, aircraft)
@@ -108,7 +115,7 @@ flights (flight_id PK, flight_number UNIQUE, airline_name, departure_city, depar
    │
    └──< bookings (booking_id PK, booking_reference UNIQUE, passenger_id FK, flight_id FK,
                   number_of_passengers, travel_class, price_per_ticket, total_cost,
-                  payment_method, booking_date, booking_status, cancelled_at)
+                  payment_method, booking_date, booking_status, cancelled_at, customer_id FK NULL)
                        >──┐
 passengers (passenger_id PK, full_name, email, phone, identification_number) ──┘ 1
          UNIQUE(email, identification_number)
@@ -126,10 +133,12 @@ Constraints used: primary keys, foreign keys (`PRAGMA foreign_keys = ON`), `UNIQ
 - **Server-side validation** of every form (the JavaScript validation is only a convenience).
 - Jinja2 **auto-escaping** of all user content (XSS protection).
 - **Session-based admin authentication** (`@admin_required`), session cleared on login, 2-hour session lifetime, HttpOnly + SameSite cookies.
+- **Role-based access** (`@role_required("admin")`): the role is re-read from the database on every request, so demoting or removing staff takes effect immediately; the last administrator cannot be removed.
+- **Customer accounts** only see bookings made while signed in or proven with reference + email, so registering with someone else's email reveals nothing.
 - Passwords hashed with **Werkzeug** `generate_password_hash` / `check_password_hash`.
 - **CSRF protection**: every POST form carries a random per-session token checked with `hmac.compare_digest`.
 - Secret key is read from the environment or a generated file in `instance/` — never hard-coded.
-- Booking lookup requires the reference **and** matching email; failures show the same generic message. Confirmation pages are only shown to the session that made or verified the booking.
+- Booking lookup requires the reference **and** matching email; failures show the same generic message. Confirmation pages are only shown to the session that made or verified the booking, or to the account that owns it.
 - Seat reservation uses `BEGIN IMMEDIATE` transactions and a conditional `UPDATE … WHERE available_seats >= ?`, so seats can never be oversold.
 - Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
 
