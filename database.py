@@ -335,6 +335,13 @@ def seed_demo_bookings(db):
                 (pax, fare["fare_id"]),
             )
 
+    # Demo customer account: Jane can sign in and see SLDEMO01 straight away.
+    jane = db.execute(
+        "INSERT INTO customers (full_name, email, phone, password_hash) VALUES (?, ?, ?, ?)",
+        ("Jane Wanjiru", "jane.wanjiru@example.com", "+254 712 345 678", generate_password_hash("Jane@2026")),
+    ).lastrowid
+    db.execute("UPDATE bookings SET customer_id = ? WHERE booking_reference = 'SLDEMO01'", (jane,))
+
     # A nearly full flight for demonstrating the seat-capacity check:
     # Nairobi -> Kisumu, 3 days from today, has only 3 Economy seats left.
     nearly_full = _find_flight(db, "Nairobi", "Kisumu", 3)

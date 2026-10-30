@@ -95,6 +95,7 @@ class FlightTicketingTestCase(unittest.TestCase):
 
     # ---------------- 2. booking validation ----------------
     def test_incomplete_booking_form_shows_errors(self):
+        self.register()
         f = self.flight()
         r = self.post(f"/book/{f['flight_id']}", {"travel_class": "Economy", "passengers": "1"})
         self.assertIn(b"Full name is required", r.data)
@@ -102,6 +103,7 @@ class FlightTicketingTestCase(unittest.TestCase):
         self.assertEqual(self.db().execute("SELECT COUNT(*) FROM bookings").fetchone()[0], 3)  # only demo data
 
     def test_invalid_email_is_rejected(self):
+        self.register()
         f = self.flight()
         before = self.seats(f["flight_id"])
         r = self.post(f"/book/{f['flight_id']}", self.booking_data(email="not-an-email"))
@@ -109,6 +111,7 @@ class FlightTicketingTestCase(unittest.TestCase):
         self.assertEqual(self.seats(f["flight_id"]), before)
 
     def test_book_available_flight_generates_reference(self):
+        self.register()
         f = self.flight()
         before = self.seats(f["flight_id"])
         r = self.post(f"/book/{f['flight_id']}", self.booking_data(), follow_redirects=True)
@@ -121,6 +124,7 @@ class FlightTicketingTestCase(unittest.TestCase):
         self.assertEqual(self.seats(f["flight_id"]), before - 2)
 
     def test_mpesa_payment_is_not_selectable_yet(self):
+        self.register()
         f = self.flight()
         before = self.seats(f["flight_id"])
         r = self.client.get(f"/book/{f['flight_id']}")
@@ -130,6 +134,7 @@ class FlightTicketingTestCase(unittest.TestCase):
         self.assertEqual(self.seats(f["flight_id"]), before)
 
     def test_group_booking_gets_discount(self):
+        self.register()
         f = self.flight()
         for pax, expected in [("3", 8500 * 3), ("4", 8500 * 4 * 95 // 100), ("6", 8500 * 6 * 90 // 100)]:
             r = self.post(f"/book/{f['flight_id']}", self.booking_data(passengers=pax), follow_redirects=True)
@@ -139,66 +144,76 @@ class FlightTicketingTestCase(unittest.TestCase):
             self.assertEqual(row["price_per_ticket"], 8500)
 
     def test_exceeding_seat_capacity_is_rejected(self):
+        self.register()
         f = self.flight("Nairobi", "Kisumu", 3)  # seeded with only 3 Economy seats
         r = self.post(f"/book/{f['flight_id']}", self.booking_data(passengers="4"))
         self.assertIn(b"Only 3 Economy seat(s)", r.data)
         self.assertEqual(self.seats(f["flight_id"]), 3)
 
     def test_booking_nonexistent_flight_redirects(self):
+        self.register()
         r = self.post("/book/999999", self.booking_data(), follow_redirects=True)
         self.assertIn(b"does not exist", r.data)
 
-    # ---------------- 3. my bookings ----------------
-    def test_retrieve_booking_with_valid_details(self):
-        r = self.post("/my-bookings", {"reference": "SLDEMO01", "email": "jane.wanjiru@example.com"})
-        self.assertIn(b"JANE WANJIRU", r.data)
-        self.assertIn(b"Confirmed", r.data)
-
-    def test_retrieve_booking_with_wrong_email_discloses_nothing(self):
-        r = self.post("/my-bookings", {"reference": "SLDEMO01", "email": "attacker@example.com"})
-        self.assertIn(b"No booking matches", r.data)
-        self.assertNotIn(b"JANE WANJIRU", r.data)
-
-    def test_confirmation_page_requires_verification(self):
-        r = self.client.get("/booking/SLDEMO01")
-        self.assertEqual(r.status_code, 302)
-        self.assertIn("/my-bookings", r.headers["Location"])
-
-    def test_cancel_eligible_booking(self):
-        f = self.flight()
-        before = self.seats(f["flight_id"])
-        r = self.post("/my-bookings/cancel", {"reference": "SLDEMO01", "email": "jane.wanjiru@example.com"},
-                      follow_redirects=True)
-        self.assertIn(b"has been cancelled", r.data)
-        row = self.db().execute("SELECT booking_status FROM bookings WHERE booking_reference='SLDEMO01'").fetchone()
-        self.assertEqual(row["booking_status"], "Cancelled")        # status updated, row not deleted
-        self.assertEqual(self.seats(f["flight_id"]), before + 2)     # seats released
-
-    def test_my_bookings_lists_bookings_made_this_session(self):
-        r = self.client.get("/my-bookings")
-        self.assertNotIn(b"Your bookings", r.data)
-        f = self.flight()
-        r = self.post(f"/book/{f['flight_id']}", self.booking_data(), follow_redirects=True)
-        ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1)
-        r = self.client.get("/my-bookings")
-        self.assertIn(b"Your bookings", r.data)
-        self.assertIn(ref, r.data)
-        self.assertNotIn(b"/booking/SLDEMO01", r.data)  # other people's bookings are never listed
-
-    def test_cancel_without_email_works_only_for_own_session_booking(self):
-        r = self.post("/my-bookings/cancel", {"reference": "SLDEMO01"}, follow_redirects=True)
-        self.assertIn(b"No booking matches", r.data)
-        f = self.flight()
-        r = self.post(f"/book/{f['flight_id']}", self.booking_data(), follow_redirects=True)
-        ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1).decode()
-        r = self.post("/my-bookings/cancel", {"reference": ref}, follow_redirects=True)
-        self.assertIn(b"has been cancelled", r.data)
-
-    # ---------------- 3b. customer accounts ----------------
+    # ---------------- 3. customer accounts & my bookings ----------------
     def register(self, email="mary.atieno@example.com"):
         return self.post("/account/register", {"full_name": "Mary Atieno", "email": email,
                                                "phone": "+254 711 222 333", "password": "Secret123",
                                                "confirm_password": "Secret123"}, follow_redirects=True)
+
+    def login_jane(self):
+        return self.post("/account/login", {"email": "jane.wanjiru@example.com", "password": "Jane@2026"},
+                         follow_redirects=True)
+
+    def test_booking_and_my_bookings_require_sign_in(self):
+        f = self.flight()
+        for url in [f"/book/{f['flight_id']}?travel_class=Economy", "/my-bookings", "/booking/SLDEMO01"]:
+            r = self.client.get(url)
+            self.assertEqual(r.status_code, 302, url)
+            self.assertIn("/account/login", r.headers["Location"])
+        before = self.seats(f["flight_id"])
+        r = self.post(f"/book/{f['flight_id']}", self.booking_data())
+        self.assertIn("/account/login", r.headers["Location"])
+        self.assertEqual(self.seats(f["flight_id"]), before)
+        # Browsing stays public.
+        self.assertEqual(self.client.get(f"/flights/{f['flight_id']}").status_code, 200)
+        self.assertIn(b"Sign in to book", self.client.get(f"/flights/{f['flight_id']}").data)
+
+    def test_sign_in_returns_to_the_chosen_flight(self):
+        f = self.flight()
+        target = f"/book/{f['flight_id']}?travel_class=Business"
+        login = self.client.get(target).headers["Location"]
+        r = self.post(login, {"email": "jane.wanjiru@example.com", "password": "Jane@2026"})
+        self.assertEqual(r.headers["Location"], target)
+        r = self.post("/account/logout")
+        r = self.post("/account/login?next=https://evil.example/", {"email": "jane.wanjiru@example.com",
+                                                                    "password": "Jane@2026"})
+        self.assertEqual(r.headers["Location"], "/my-bookings")  # never redirects off-site
+
+    def test_demo_customer_sees_their_booking(self):
+        r = self.login_jane()
+        self.assertIn(b"Welcome back, Jane Wanjiru", r.data)
+        self.assertIn(b"/booking/SLDEMO01", r.data)
+        r = self.client.get("/booking/SLDEMO01")
+        self.assertIn(b"JANE WANJIRU", r.data)
+        self.assertIn(b"Confirmed", r.data)
+
+    def test_customer_cannot_open_or_cancel_someone_elses_booking(self):
+        self.register()
+        self.assertEqual(self.client.get("/booking/SLDEMO01").status_code, 404)
+        self.assertEqual(self.post("/my-bookings/cancel", {"reference": "SLDEMO01"}).status_code, 404)
+        status = self.db().execute("SELECT booking_status FROM bookings WHERE booking_reference='SLDEMO01'")
+        self.assertEqual(status.fetchone()[0], "Confirmed")
+
+    def test_cancel_eligible_booking(self):
+        f = self.flight()
+        before = self.seats(f["flight_id"])
+        self.login_jane()
+        r = self.post("/my-bookings/cancel", {"reference": "SLDEMO01"}, follow_redirects=True)
+        self.assertIn(b"has been cancelled", r.data)
+        row = self.db().execute("SELECT booking_status FROM bookings WHERE booking_reference='SLDEMO01'").fetchone()
+        self.assertEqual(row["booking_status"], "Cancelled")        # status updated, row not deleted
+        self.assertEqual(self.seats(f["flight_id"]), before + 2)     # seats released
 
     def test_customer_bookings_follow_the_account_across_sessions(self):
         self.assertIn(b"Welcome, Mary Atieno", self.register().data)
@@ -209,17 +224,29 @@ class FlightTicketingTestCase(unittest.TestCase):
                       follow_redirects=True)
         ref = re.search(rb"booking reference is (SL[A-Z0-9]{6})", r.data).group(1)
         self.post("/account/logout")
-        self.assertNotIn(ref, self.client.get("/my-bookings").data)
         r = self.post("/account/login", {"email": "MARY.ATIENO@example.com", "password": "Secret123"},
                       follow_redirects=True)
         self.assertIn(b"Welcome back", r.data)
         self.assertIn(ref, r.data)
-        self.assertEqual(self.client.get(f"/booking/{ref.decode()}").status_code, 200)
+        self.assertNotIn(b"/booking/SLDEMO01", r.data)  # other people's bookings are never listed
+
+    def test_add_existing_booking_needs_matching_email(self):
+        self.register()
+        r = self.post("/my-bookings", {"reference": "SLDEMO02", "email": "attacker@example.com"})
+        self.assertIn(b"No booking matches", r.data)
+        self.assertNotIn(b"BRIAN OTIENO", r.data)
+        r = self.post("/my-bookings", {"reference": "SLDEMO02", "email": "brian.otieno@example.com"},
+                      follow_redirects=True)
+        self.assertIn(b"SLDEMO02 is now on your account", r.data)
+        # A booking already on another account (Jane's SLDEMO01) cannot be taken over.
+        r = self.post("/my-bookings", {"reference": "SLDEMO01", "email": "jane.wanjiru@example.com"})
+        self.assertIn(b"No booking matches", r.data)
 
     def test_registering_with_someone_elses_email_does_not_expose_their_bookings(self):
-        r = self.register(email="jane.wanjiru@example.com")  # owner of SLDEMO01
-        self.assertNotIn(b"/booking/SLDEMO01", r.data)
-        self.assertEqual(self.client.get("/booking/SLDEMO01").status_code, 302)
+        self.register(email="brian.otieno@example.com")  # SLDEMO02 was booked with this email
+        r = self.client.get("/my-bookings")
+        self.assertNotIn(b"/booking/SLDEMO02", r.data)
+        self.assertEqual(self.client.get("/booking/SLDEMO02").status_code, 404)
 
     def test_duplicate_registration_and_wrong_password_rejected(self):
         self.register()
@@ -419,7 +446,8 @@ class FlightTicketingTestCase(unittest.TestCase):
         self.assertIn(b"&lt;script&gt;", r.data)
 
     def test_all_public_pages_load(self):
-        for url in ["/", "/search", "/book", "/my-bookings", "/about", "/contact", "/admin/login"]:
+        for url in ["/", "/search", "/book", "/about", "/contact", "/account/login", "/account/register",
+                    "/admin/login"]:
             self.assertEqual(self.client.get(url).status_code, 200, url)
         self.assertEqual(self.client.get("/does-not-exist").status_code, 404)
 

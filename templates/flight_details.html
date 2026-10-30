@@ -51,11 +51,14 @@
             </ul>
             <p>{% if fare.available_seats == 0 %}<span class="badge badge-cancelled">Sold out</span>{% else %}{{ fare.available_seats }} of {{ fare.total_seats }} seats available{% endif %}</p>
             {% if fare.available_seats > 0 and not departed %}
-                <a class="btn btn-primary btn-block" href="{{ url_for('booking', flight_id=flight.flight_id, travel_class=fare.travel_class, passengers=[passengers, fare.available_seats]|min) }}">Book Now</a>
+                <a class="btn btn-primary btn-block" href="{{ url_for('booking', flight_id=flight.flight_id, travel_class=fare.travel_class, passengers=[passengers, fare.available_seats]|min) }}">{{ 'Book Now' if customer_name else 'Sign in to book' }}</a>
             {% endif %}
         </div>
         {% endfor %}
     </div>
+    <p class="panel group-offer">&#128101; <strong>Travelling as a group?</strong>
+        {% for min_pax, pct in group_discounts|reverse %}{{ pct }}% off for {{ min_pax }}+ passengers{{ ' and ' if not loop.last }}{% endfor %}
+        on a single booking &mdash; applied automatically.</p>
     <p><a href="{{ url_for('search_flights') }}" class="btn btn-outline">&larr; Back to search</a></p>
 </div>
 {% endblock %}

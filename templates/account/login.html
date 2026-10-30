@@ -2,11 +2,11 @@
 {% block title %}Sign In{% endblock %}
 {% block content %}
 <div class="container narrow">
-    <form class="panel login-card" method="post" action="{{ url_for('customer_login') }}" novalidate data-validate>
+    <form class="panel login-card" method="post" action="{{ url_for('customer_login', next=request.args.get('next')) }}" novalidate data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <img src="{{ url_for('static', filename='images/airline_logo.svg') }}" alt="SkyLink Airlines logo" width="56" height="56">
         <h1>Sign in</h1>
-        <p class="muted">See all your SkyLink bookings on any device.</p>
+        <p class="muted">Sign in to book flights and manage your bookings.</p>
         <div class="form-group">
             <label for="email">Email address</label>
             <input type="email" id="email" name="email" value="{{ email }}" required autocomplete="email" autofocus>
@@ -16,7 +16,7 @@
             <input type="password" id="password" name="password" required autocomplete="current-password">
         </div>
         <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-        <p class="muted small">New to SkyLink? <a href="{{ url_for('customer_register') }}">Create an account</a></p>
+        <p class="muted small">New to SkyLink? <a href="{{ url_for('customer_register', next=request.args.get('next')) }}">Create an account</a></p>
     </form>
 </div>
 {% endblock %}

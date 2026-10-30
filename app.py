@@ -194,58 +194,30 @@ def get_booking_by_reference(reference):
 
 
 def get_my_bookings():
-    """Bookings on the signed-in customer's account plus any made or verified this session."""
-    refs = session.get("my_refs", [])
-    where, params = [], []
-    if refs:
-        where.append(f"b.booking_reference IN ({','.join('?' * len(refs))})")
-        params += refs
-    if session.get("customer_id"):
-        where.append("b.customer_id = ?")
-        params.append(session["customer_id"])
-    if not where:
-        return []
-    return get_db().execute(
-        BOOKING_SELECT + " WHERE " + " OR ".join(where) + " ORDER BY b.booking_date DESC", params,
-    ).fetchall()
+    """Bookings on the signed-in customer's account, newest first."""
+    return get_db().execute(BOOKING_SELECT + " WHERE b.customer_id = ? ORDER BY b.booking_date DESC",
+                            (session.get("customer_id"),)).fetchall()
 
 
 def owns_booking(booking):
-    """True when the visitor made/verified this booking this session, or it is on their account."""
-    return booking["booking_reference"] in session.get("my_refs", []) or (
-        session.get("customer_id") is not None and booking["customer_id"] == session["customer_id"])
+    return session.get("customer_id") is not None and booking["customer_id"] == session["customer_id"]
 
 
-def claim_session_bookings(customer_id):
-    """Attach bookings this visitor has already proven they own to their account."""
-    refs = session.get("my_refs", [])
-    if refs:
-        get_db().execute(
-            f"UPDATE bookings SET customer_id = ? WHERE customer_id IS NULL "
-            f"AND booking_reference IN ({','.join('?' * len(refs))})", [customer_id] + refs,
-        )
+def safe_next(default):
+    """Where to go after signing in: only local paths, never another site."""
+    target = request.args.get("next", "")
+    return target if target.startswith("/") and not target.startswith("//") else default
 
 
 def start_customer_session(customer):
-    # New session on sign-in (prevents session fixation) but keep the CSRF token
-    # and the bookings already proven this visit.
-    keep = {k: session[k] for k in ("_csrf_token", "my_refs") if k in session}
+    # New session on sign-in (prevents session fixation), keeping only the CSRF token.
+    token = session.get("_csrf_token")
     session.clear()
-    session.update(keep)
+    if token:
+        session["_csrf_token"] = token
     session.permanent = True
     session["customer_id"] = customer["customer_id"]
     session["customer_name"] = customer["full_name"]
-    claim_session_bookings(customer["customer_id"])
-
-
-def remember_booking(reference):
-    """Record in the session that this visitor has proven they own a booking."""
-    refs = session.get("my_refs", [])
-    if reference not in refs:
-        refs = (refs + [reference])[-20:]
-    session["my_refs"] = refs
-    if session.get("customer_id"):
-        claim_session_bookings(session["customer_id"])
 
 
 def cancel_booking(db, booking):
@@ -307,6 +279,7 @@ def register_template_helpers(app):
             "is_admin": bool(session.get("admin_id")),
             "staff_role": g.get("staff_role"),
             "customer_name": session.get("customer_name"),
+            "group_discounts": GROUP_DISCOUNTS,
             "staff_roles": STAFF_ROLES,
         }
 
@@ -358,6 +331,18 @@ def admin_required(view):
             return redirect(url_for("admin_login", next=request.path))
         g.admin_username = staff["username"]
         g.staff_role = staff["role"]
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def customer_required(view):
+    """Booking and viewing bookings hold personal data, so customers must sign in."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("customer_id"):
+            flash("Please sign in or create an account to continue.", "error")
+            back = request.full_path if request.method == "GET" else url_for("my_bookings")
+            return redirect(url_for("customer_login", next=back.rstrip("?")))
         return view(*args, **kwargs)
     return wrapped
 
@@ -512,6 +497,7 @@ def register_public_routes(app):
         return render_template("book_flight.html", flights=flights, cities=all_cities(), dest=dest)
 
     @app.route("/book/<int:flight_id>", methods=["GET", "POST"])
+    @customer_required
     def booking(flight_id):
         db = get_db()
         flight = db.execute("SELECT * FROM flights WHERE flight_id = ?", (flight_id,)).fetchone()
@@ -628,64 +614,51 @@ def register_public_routes(app):
                           "error")
                     return redirect(url_for("booking", flight_id=flight_id,
                                             travel_class=form["travel_class"]))
-                remember_booking(reference)
                 flash(f"Booking successful! Your booking reference is {reference}.", "success")
                 return redirect(url_for("booking_confirmation", reference=reference))
 
         return render_template("booking.html", flight=flight, fares=fares, form=form, errors=errors,
-                               max_passengers=MAX_PASSENGERS_PER_BOOKING, group_discounts=GROUP_DISCOUNTS)
+                               max_passengers=MAX_PASSENGERS_PER_BOOKING)
 
     @app.route("/booking/<reference>")
+    @customer_required
     def booking_confirmation(reference):
-        reference = reference.upper()
-        booking = get_booking_by_reference(reference)
-        # Only someone who made the booking, verified it with their email, or holds it
-        # on their account may view it. Same response whether or not it exists.
+        booking = get_booking_by_reference(reference.upper())
+        # Same response whether the booking does not exist or belongs to someone else.
         if booking is None or not owns_booking(booking):
-            flash("Please verify your booking with your reference and email address.", "error")
-            return redirect(url_for("my_bookings"))
+            abort(404)
         return render_template("booking_confirmation.html", booking=booking, cancellable=can_cancel(booking),
                                cutoff=CANCELLATION_CUTOFF_HOURS)
 
     @app.route("/my-bookings", methods=["GET", "POST"])
+    @customer_required
     def my_bookings():
-        booking = None
         reference = email = ""
         if request.method == "POST":
+            # "Add an existing booking": for bookings made without an account (e.g. at our office).
             reference = request.form.get("reference", "").strip().upper()
             email = request.form.get("email", "").strip()
-            if not reference or not email:
-                flash("Please enter both your booking reference and email address.", "error")
-            elif not REFERENCE_RE.match(reference) or not EMAIL_RE.match(email):
+            found = get_booking_by_reference(reference) if REFERENCE_RE.match(reference) else None
+            # Same generic message whatever is wrong, so the form does not reveal which bookings exist.
+            if (found is None or not EMAIL_RE.match(email)
+                    or not hmac.compare_digest(found["email"].lower(), email.lower())
+                    or found["customer_id"] not in (None, session["customer_id"])):
                 flash("No booking matches those details. Please check and try again.", "error")
             else:
-                found = get_booking_by_reference(reference)
-                # Same generic message whether the reference or the email is wrong,
-                # so the page does not reveal which bookings exist.
-                if found and hmac.compare_digest(found["email"].lower(), email.lower()):
-                    booking = found
-                    remember_booking(reference)
-                else:
-                    flash("No booking matches those details. Please check and try again.", "error")
-        return render_template("my_bookings.html", booking=booking, reference=reference, email=email,
-                               my_bookings=get_my_bookings(),
-                               cancellable=booking is not None and can_cancel(booking),
-                               cutoff=CANCELLATION_CUTOFF_HOURS)
+                get_db().execute("UPDATE bookings SET customer_id = ? WHERE booking_id = ?",
+                                 (session["customer_id"], found["booking_id"]))
+                flash(f"Booking {reference} is now on your account.", "success")
+                return redirect(url_for("booking_confirmation", reference=reference))
+        return render_template("my_bookings.html", my_bookings=get_my_bookings(), reference=reference,
+                               email=email, cutoff=CANCELLATION_CUTOFF_HOURS)
 
     @app.route("/my-bookings/cancel", methods=["POST"])
+    @customer_required
     def cancel_my_booking():
         reference = request.form.get("reference", "").strip().upper()
-        email = request.form.get("email", "").strip()
         booking = get_booking_by_reference(reference) if reference else None
-        # Ownership is proven either by a matching email or by having made/verified
-        # the booking earlier in this session.
-        verified = booking is not None and (
-            owns_booking(booking)
-            or (email and hmac.compare_digest(booking["email"].lower(), email.lower()))
-        )
-        if not verified:
-            flash("No booking matches those details.", "error")
-            return redirect(url_for("my_bookings"))
+        if booking is None or not owns_booking(booking):
+            abort(404)
         if not can_cancel(booking):
             if booking["booking_status"] == "Cancelled":
                 flash("This booking has already been cancelled.", "error")
@@ -694,13 +667,12 @@ def register_public_routes(app):
                       "before departure. Please contact our office.", "error")
         elif cancel_booking(get_db(), booking):
             flash(f"Booking {reference} has been cancelled and the seats have been released.", "success")
-        remember_booking(reference)
         return redirect(url_for("booking_confirmation", reference=reference))
 
     @app.route("/account/register", methods=["GET", "POST"])
     def customer_register():
         if session.get("customer_id"):
-            return redirect(url_for("my_bookings"))
+            return redirect(safe_next(url_for("my_bookings")))
         form = {k: request.form.get(k, "").strip() for k in ("full_name", "email", "phone")}
         errors = {}
         if request.method == "POST":
@@ -727,27 +699,27 @@ def register_public_routes(app):
                 else:
                     start_customer_session({"customer_id": customer_id, "full_name": form["full_name"]})
                     flash(f"Welcome, {form['full_name']}! Your account has been created.", "success")
-                    return redirect(url_for("my_bookings"))
+                    return redirect(safe_next(url_for("my_bookings")))
             flash("Please correct the errors highlighted below.", "error")
         return render_template("account/register.html", form=form, errors=errors)
 
     @app.route("/account/login", methods=["GET", "POST"])
     def customer_login():
         if session.get("customer_id"):
-            return redirect(url_for("my_bookings"))
+            return redirect(safe_next(url_for("my_bookings")))
         email = request.form.get("email", "").strip()
         if request.method == "POST":
             customer = get_db().execute("SELECT * FROM customers WHERE email = ?", (email,)).fetchone()
             if customer and check_password_hash(customer["password_hash"], request.form.get("password", "")):
                 start_customer_session(customer)
                 flash(f"Welcome back, {customer['full_name']}.", "success")
-                return redirect(url_for("my_bookings"))
+                return redirect(safe_next(url_for("my_bookings")))
             flash("Invalid email or password.", "error")
         return render_template("account/login.html", email=email)
 
     @app.route("/account/logout", methods=["POST"])
     def customer_logout():
-        for key in ("customer_id", "customer_name", "my_refs"):
+        for key in ("customer_id", "customer_name"):
             session.pop(key, None)
         flash("You have been signed out.", "success")
         return redirect(url_for("index"))

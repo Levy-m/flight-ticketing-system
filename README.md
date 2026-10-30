@@ -59,8 +59,9 @@ Then open **http://127.0.0.1:5000** in your browser.
 | Admin username | `admin` |
 | Admin password | `SkyLink@2026` |
 | Booking agent login (limited role) | username `agent`, password `Agent@2026` – can manage bookings and read messages, but cannot change flights or staff |
-| Demo booking (Confirmed) | Reference `SLDEMO01`, email `jane.wanjiru@example.com` |
-| Demo booking (Pending) | Reference `SLDEMO02`, email `brian.otieno@example.com` |
+| Customer login (demo) | http://127.0.0.1:5000/account/login – email `jane.wanjiru@example.com`, password `Jane@2026` (owns booking `SLDEMO01`) |
+| Demo booking (Confirmed) | Reference `SLDEMO01`, email `jane.wanjiru@example.com` (already on Jane's account) |
+| Demo booking (Pending) | Reference `SLDEMO02`, email `brian.otieno@example.com` (no account – use *Add an existing booking* to attach it) |
 | Demo booking (Cancelled) | Reference `SLDEMO03`, email `amina.hassan@example.com` |
 | Nearly full flight | Nairobi → Kisumu, 3 days from today: only 3 Economy seats left (use it to show the seat-capacity check) |
 
@@ -81,8 +82,8 @@ Other optional settings: `SECRET_KEY` (otherwise a random key is generated and s
 | Flight search | Search by city/airport, date, return date, passengers and class; past dates blocked; "no flights" message with nearby-date suggestions |
 | Booking | Passenger, flight and booking sections; live total-cost calculation (price × passengers, minus any group discount); full server-side validation; seat check inside a database transaction; unique booking reference |
 | E-ticket | Airline-styled confirmation page with **Print Ticket** button (print stylesheet prints only the ticket) |
-| My Bookings | Lists the visitor's bookings automatically (made this visit, or on their account); retrieve others by booking reference **and** email; view status; cancel (status becomes *Cancelled*, seats released, row kept) |
-| Customer accounts | Register / sign in / sign out; booking form prefilled from the account; bookings stay with the account on any device |
+| Customer accounts | **Sign-in is required to book and to view bookings** (they hold personal data); browsing flights, fares and discounts stays public. After signing in you return to the flight you picked; the booking form is prefilled from the account |
+| My Bookings | Lists every booking on the account; *Add an existing booking* attaches one made without an account (reference **and** email must match); view, print, cancel (status becomes *Cancelled*, seats released, row kept) |
 | Admin – flights | Login, dashboard with 3-day schedule, add / view / edit / delete flights, update prices and seats per class |
 | Admin – bookings | View all bookings; filter by reference, flight number, departure date, status; confirm pending or cancel bookings |
 | Admin – reports | KPIs plus charts (Chart.js, bundled for offline use): revenue over time, most travelled destinations, seat occupancy by destination, bookings by status, passengers by class, top routes; filter by period |
@@ -134,11 +135,13 @@ Constraints used: primary keys, foreign keys (`PRAGMA foreign_keys = ON`), `UNIQ
 - Jinja2 **auto-escaping** of all user content (XSS protection).
 - **Session-based admin authentication** (`@admin_required`), session cleared on login, 2-hour session lifetime, HttpOnly + SameSite cookies.
 - **Role-based access** (`@role_required("admin")`): the role is re-read from the database on every request, so demoting or removing staff takes effect immediately; the last administrator cannot be removed.
-- **Customer accounts** only see bookings made while signed in or proven with reference + email, so registering with someone else's email reveals nothing.
+- **Customer accounts** only see bookings made while signed in or added with reference + email, so registering with someone else's email reveals nothing.
 - Passwords hashed with **Werkzeug** `generate_password_hash` / `check_password_hash`.
 - **CSRF protection**: every POST form carries a random per-session token checked with `hmac.compare_digest`.
 - Secret key is read from the environment or a generated file in `instance/` — never hard-coded.
-- Booking lookup requires the reference **and** matching email; failures show the same generic message. Confirmation pages are only shown to the session that made or verified the booking, or to the account that owns it.
+- Booking, My Bookings, e-tickets and cancelling require a signed-in customer (`@customer_required`); an e-ticket or cancel request for a booking on another account returns 404, the same as one that does not exist.
+- Adding an existing booking requires the reference **and** matching email, and never moves a booking off another account; failures show the same generic message.
+- Sign-in redirects (`?next=`) only go to local paths.
 - Seat reservation uses `BEGIN IMMEDIATE` transactions and a conditional `UPDATE … WHERE available_seats >= ?`, so seats can never be oversold.
 - Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
 

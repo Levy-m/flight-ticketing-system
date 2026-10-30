@@ -561,6 +561,7 @@ legend + * { clear: both; }
 .lookup-form { margin-bottom: 1.5rem; }
 .info-panel ul { padding-left: 1.2rem; margin: 0; }
 .my-bookings-list { margin-bottom: 1.5rem; }
+.group-offer { border-left: 5px solid var(--accent); }
 .my-bookings-list h2 { margin-top: 0; }
 .my-bookings-list ul { list-style: none; padding: 0; margin: 0; }
 .my-bookings-list li + li { border-top: 1px solid var(--border); }
