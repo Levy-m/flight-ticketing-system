@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Edit {{ flight.flight_number }}{% endblock %}
+{% block subnav %}{% include "admin/_nav.html" %}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="container">
     <h1 class="admin-title">Edit flight {{ flight.flight_number }}</h1>
     {% if booked %}

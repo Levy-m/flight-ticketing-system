@@ -91,6 +91,7 @@ h3 { font-size: 1.15rem; }
 .nav-account button { background: none; border: 1px solid rgba(255, 255, 255, .4); color: var(--white); border-radius: 6px; padding: .3rem .6rem; cursor: pointer; font: inherit; }
 .nav-account button:hover { background: rgba(255, 255, 255, .1); }
 .main-nav a.nav-admin { border: 1px solid var(--accent); color: var(--accent); }
+.main-nav a.nav-admin.active, .main-nav a.nav-admin:hover { background: var(--accent); color: var(--navy); }
 
 .nav-toggle {
     display: none;

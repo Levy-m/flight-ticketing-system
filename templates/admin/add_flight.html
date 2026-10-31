@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Add Flight{% endblock %}
+{% block subnav %}{% include "admin/_nav.html" %}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="container">
     <h1 class="admin-title">Add a new flight</h1>
     <form method="post" action="{{ url_for('admin_add_flight') }}" novalidate data-validate>

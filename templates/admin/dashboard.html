@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% from "_macros.html" import status_badge %}
 {% block title %}Admin Dashboard{% endblock %}
+{% block subnav %}{% include "admin/_nav.html" %}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="container">
     <h1 class="admin-title">Dashboard</h1>
     <div class="stat-grid">
-        <div class="stat"><span class="stat-value">{{ stats.flights }}</span><span class="stat-label">Upcoming flights</span></div>
-        <div class="stat"><span class="stat-value">{{ stats.bookings }}</span><span class="stat-label">Active bookings</span></div>
-        <div class="stat"><span class="stat-value">{{ stats.pending }}</span><span class="stat-label">Pending payment</span></div>
+        <div class="stat"><span class="stat-value">{{ "{:,}".format(stats.flights) }}</span><span class="stat-label">Upcoming flights</span></div>
+        <div class="stat"><span class="stat-value">{{ "{:,}".format(stats.bookings) }}</span><span class="stat-label">Active bookings</span></div>
+        <div class="stat"><span class="stat-value">{{ "{:,}".format(stats.pending) }}</span><span class="stat-label">Pending payment</span></div>
         <div class="stat"><span class="stat-value">{{ stats.revenue|ksh }}</span><span class="stat-label">Confirmed revenue</span></div>
-        <div class="stat"><span class="stat-value">{{ stats.messages }}</span><span class="stat-label">Contact messages</span></div>
+        <div class="stat"><span class="stat-value">{{ "{:,}".format(stats.messages) }}</span><span class="stat-label">Contact messages</span></div>
     </div>
 
     <section class="panel">

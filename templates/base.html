@@ -34,15 +34,18 @@
                     <span>Hi, {{ customer_name.split()[0] }}</span>
                     <button type="submit">Sign out</button>
                 </form>
-            {% else %}
+            {% elif not is_admin %}
                 <a href="{{ url_for('customer_login') }}" class="{{ 'active' if ep in ['customer_login', 'customer_register'] }}">Sign in</a>
             {% endif %}
             {% if is_admin %}
-                <a href="{{ url_for('admin_dashboard') }}" class="nav-admin {{ 'active' if ep.startswith('admin') }}">Admin</a>
+                <a href="{{ url_for('admin_dashboard') }}" class="nav-admin {{ 'active' if ep.startswith('admin') }}">Staff area</a>
             {% endif %}
         </nav>
     </div>
 </header>
+
+{# Section navigation (the staff bar) sits directly under the header, above flash messages. #}
+{% block subnav %}{% endblock %}
 
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

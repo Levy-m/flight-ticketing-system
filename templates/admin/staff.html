@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% from "_macros.html" import field_error %}
 {% block title %}Staff Accounts{% endblock %}
+{% block subnav %}{% include "admin/_nav.html" %}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="container">
     <h1 class="admin-title">Staff accounts</h1>
     <p class="muted">Administrators manage everything. Booking agents can view flights and dashboard figures,
