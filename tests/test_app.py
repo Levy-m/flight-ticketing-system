@@ -412,6 +412,22 @@ class FlightTicketingTestCase(unittest.TestCase):
         self.assertNotIn(b"SLDEMO01", r.data)
 
     # ---------------- 5. contact & security ----------------
+    def test_admin_bookings_are_paginated(self):
+        self.login()
+        f = self.flight()
+        db = self.db()
+        passenger = db.execute("SELECT passenger_id FROM passengers LIMIT 1").fetchone()[0]
+        db.executemany("""INSERT INTO bookings (booking_reference, passenger_id, flight_id, number_of_passengers,
+                              travel_class, price_per_ticket, total_cost, booking_status)
+                          VALUES (?, ?, ?, 1, 'Economy', 8500, 8500, 'Cancelled')""",
+                       [(f"SLPAGE{i:02d}", passenger, f["flight_id"]) for i in range(30)])
+        r = self.client.get("/admin/bookings")
+        self.assertIn(b"33 bookings found", r.data)
+        self.assertIn(b"Page 1 of 2", r.data)
+        r = self.client.get("/admin/bookings?page=2")
+        self.assertIn(b"showing 26&ndash;33", r.data)
+        self.assertEqual(self.client.get("/admin/bookings?page=999").status_code, 200)  # clamped to last page
+
     def test_submit_contact_message(self):
         r = self.post("/contact", {"customer_name": "Mary Achieng", "email": "mary@example.com",
                                    "subject": "Refund", "message": "How long does a refund take?"},

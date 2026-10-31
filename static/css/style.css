@@ -619,7 +619,7 @@ legend + * { clear: both; }
 .list-item:last-child { border-bottom: 0; }
 .filter-bar { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: flex-end; }
 .filter-bar .form-group { margin: 0; min-width: 170px; flex: 1; }
-.pagination { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: center; margin: 1rem 0; }
+.pagination { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: center; align-items: center; margin: 1rem 0; }
 .pagination a { padding: .35rem .75rem; border-radius: 6px; background: var(--white); box-shadow: var(--shadow); }
 .pagination a.active { background: var(--sky); color: var(--white); }
 .login-card { max-width: 420px; margin: 3rem auto; text-align: center; }

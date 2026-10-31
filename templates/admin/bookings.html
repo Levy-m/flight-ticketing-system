@@ -30,19 +30,18 @@
         <a href="{{ url_for('admin_bookings') }}" class="btn btn-outline">Reset</a>
     </form>
 
-    <p class="muted">{{ bookings|length }} booking{{ 's' if bookings|length != 1 }} found.</p>
+    <p class="muted">{{ "{:,}".format(total) }} booking{{ 's' if total != 1 }} found{% if pages > 1 %} &middot; showing {{ (page - 1) * 25 + 1 }}&ndash;{{ (page - 1) * 25 + bookings|length }}{% endif %}.</p>
     {% if bookings %}
     <div class="table-wrap">
     <table class="data-table admin-table">
         <thead>
-            <tr><th>Reference</th><th>Passenger</th><th>Email</th><th>Flight</th><th>Departure date</th><th>Passengers</th><th>Total cost</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Reference</th><th>Passenger</th><th>Flight</th><th>Departure date</th><th>Passengers</th><th>Total cost</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody>
         {% for b in bookings %}
             <tr>
                 <td data-label="Reference"><strong>{{ b.booking_reference }}</strong><br><small class="muted">{{ b.booking_date|nicedate('%d %b %Y') }}</small></td>
-                <td data-label="Passenger">{{ b.full_name }}</td>
-                <td data-label="Email">{{ b.email }}</td>
+                <td data-label="Passenger">{{ b.full_name }}<br><small class="muted">{{ b.email }}</small></td>
                 <td data-label="Flight">{{ b.flight_number }}<br><small class="muted">{{ b.departure_city }} &rarr; {{ b.destination_city }}</small></td>
                 <td data-label="Departure">{{ b.departure_date|nicedate('%d %b %Y') }}</td>
                 <td data-label="Passengers">{{ b.number_of_passengers }} &middot; {{ b.travel_class }}</td>
@@ -68,6 +67,13 @@
         </tbody>
     </table>
     </div>
+    {% if pages > 1 %}
+    <nav class="pagination">
+        {% if page > 1 %}<a href="{{ url_for('admin_bookings', page=page - 1, **filters) }}">&larr; Previous</a>{% endif %}
+        <span class="muted">Page {{ page }} of {{ "{:,}".format(pages) }}</span>
+        {% if page < pages %}<a href="{{ url_for('admin_bookings', page=page + 1, **filters) }}">Next &rarr;</a>{% endif %}
+    </nav>
+    {% endif %}
     {% else %}
         <div class="empty-state"><p>No bookings match your filters.</p></div>
     {% endif %}

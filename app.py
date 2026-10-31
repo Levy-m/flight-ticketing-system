@@ -1068,9 +1068,16 @@ def register_admin_routes(app):
             where.append("b.booking_status = ?")
             params.append(filters["status"])
         clause = (" WHERE " + " AND ".join(where)) if where else ""
-        bookings = get_db().execute(BOOKING_SELECT + clause + " ORDER BY b.booking_date DESC", params).fetchall()
+        db = get_db()
+        total = db.execute(f"""SELECT COUNT(*) FROM bookings b JOIN flights f ON f.flight_id = b.flight_id
+                               {clause}""", params).fetchone()[0]
+        per_page = 25
+        pages = max((total + per_page - 1) // per_page, 1)
+        page = min(max(parse_int(request.args.get("page")) or 1, 1), pages)
+        bookings = db.execute(BOOKING_SELECT + clause + " ORDER BY b.booking_date DESC LIMIT ? OFFSET ?",
+                              params + [per_page, (page - 1) * per_page]).fetchall()
         return render_template("admin/bookings.html", bookings=bookings, filters=filters,
-                               statuses=BOOKING_STATUSES)
+                               statuses=BOOKING_STATUSES, page=page, pages=pages, total=total)
 
     @app.route("/admin/bookings/<int:booking_id>/status", methods=["POST"])
     @admin_required
