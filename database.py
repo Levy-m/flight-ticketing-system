@@ -4,7 +4,9 @@ Database layer for the SkyLink Airlines Flight Ticketing System.
 Responsibilities:
     * open / close SQLite connections (one per request, stored on flask.g)
     * create the schema (tables, keys, constraints, indexes)
-    * populate the database with sample flights, an administrator and demo bookings
+    * upgrade databases created by older versions (adds new tables and columns, keeps data)
+    * populate a new database with sample flights, staff and customer accounts, demo bookings
+      and fictional mock traffic (a year of past flights + partly sold upcoming ones)
     * provide a small transaction helper used for bookings and cancellations
 
 Run directly to (re)create the database:
