@@ -1,15 +1,15 @@
 /* ==========================================================================
    SkyLink Airlines - main stylesheet
-   Colour scheme: deep navy + sky blue, with a warm orange accent.
+   Colour scheme: deep emerald green with warm gold accents.
    ========================================================================== */
 
 :root {
-    --navy: #0b2545;
-    --navy-2: #13315c;
-    --sky: #1e88e5;
-    --sky-light: #e3f1fd;
-    --accent: #f59e0b;
-    --accent-dark: #d97706;
+    --navy: #064e3b;
+    --navy-2: #065f46;
+    --sky: #059669;
+    --sky-light: #dcf5e9;
+    --accent: #d4a017;
+    --accent-dark: #b8860b;
     --success: #15803d;
     --success-bg: #dcfce7;
     --danger: #b91c1c;
@@ -19,10 +19,10 @@
     --text: #1f2937;
     --muted: #6b7280;
     --border: #e5e7eb;
-    --bg: #f4f7fb;
+    --bg: #f3f8f5;
     --white: #ffffff;
     --radius: 12px;
-    --shadow: 0 6px 24px rgba(11, 37, 69, 0.08);
+    --shadow: 0 6px 24px rgba(6, 78, 59, 0.08);
     --font: "Poppins", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -37,6 +37,7 @@ body {
     line-height: 1.6;
     color: var(--text);
     background: var(--bg);
+    accent-color: var(--sky);   /* radio buttons and checkboxes */
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -78,7 +79,7 @@ h3 { font-size: 1.15rem; }
 
 .main-nav { display: flex; gap: .25rem; }
 .main-nav a {
-    color: #d6e4f5;
+    color: #d3eee1;
     padding: .5rem .8rem;
     border-radius: 8px;
     font-weight: 500;
@@ -87,7 +88,7 @@ h3 { font-size: 1.15rem; }
 }
 .main-nav a:hover { background: rgba(255, 255, 255, .1); color: var(--white); text-decoration: none; }
 .main-nav a.active { background: var(--sky); color: var(--white); }
-.nav-account { display: flex; align-items: center; gap: .4rem; color: #d6e4f5; padding: 0 .5rem; font-size: .92rem; }
+.nav-account { display: flex; align-items: center; gap: .4rem; color: #d3eee1; padding: 0 .5rem; font-size: .92rem; }
 .nav-account button { background: none; border: 1px solid rgba(255, 255, 255, .4); color: var(--white); border-radius: 6px; padding: .3rem .6rem; cursor: pointer; font: inherit; }
 .nav-account button:hover { background: rgba(255, 255, 255, .1); }
 .main-nav a.nav-admin { border: 1px solid var(--accent); color: var(--accent); }
@@ -138,7 +139,7 @@ h3 { font-size: 1.15rem; }
 }
 .btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--sky); color: var(--white); }
-.btn-primary:hover { background: #1565c0; }
+.btn-primary:hover { background: #047857; }
 .btn-accent { background: var(--accent); color: var(--navy); }
 .btn-accent:hover { background: var(--accent-dark); color: var(--white); }
 .btn-outline { background: transparent; color: var(--sky); border-color: var(--sky); }
@@ -156,7 +157,7 @@ h3 { font-size: 1.15rem; }
 /* ---------- Hero ---------- */
 .hero {
     background:
-        linear-gradient(110deg, rgba(11, 37, 69, .92) 0%, rgba(11, 37, 69, .65) 50%, rgba(11, 37, 69, .25) 100%),
+        linear-gradient(110deg, rgba(6, 78, 59, .92) 0%, rgba(6, 78, 59, .65) 50%, rgba(6, 78, 59, .25) 100%),
         url("../images/aircraft.svg") center / cover no-repeat,
         var(--navy);
     color: var(--white);
@@ -165,10 +166,10 @@ h3 { font-size: 1.15rem; }
 .hero-inner { display: grid; grid-template-columns: 1fr 1.25fr; gap: 3rem; align-items: center; }
 .hero-text h1 { color: var(--white); font-size: 3rem; margin: .5rem 0 1rem; }
 .hero-text h1 span { color: var(--accent); }
-.hero-text p { font-size: 1.1rem; color: #d6e4f5; max-width: 32rem; }
+.hero-text p { font-size: 1.1rem; color: #d3eee1; max-width: 32rem; }
 .eyebrow {
     display: inline-block;
-    background: rgba(245, 158, 11, .15);
+    background: rgba(212, 160, 23, .15);
     color: var(--accent);
     padding: .3rem .8rem;
     border-radius: 999px;
@@ -239,7 +240,7 @@ input[type="date"], input[type="time"], input[type="password"], select, textarea
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--sky);
-    box-shadow: 0 0 0 3px rgba(30, 136, 229, .18);
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, .18);
 }
 textarea { resize: vertical; }
 .has-error input, .has-error select, .has-error textarea, input.is-invalid { border-color: var(--danger); }
@@ -292,7 +293,7 @@ legend + * { clear: both; }
     margin-bottom: 2rem;
 }
 .page-banner h1 { color: var(--white); margin-bottom: .25rem; }
-.page-banner p { margin: 0; color: #c9dbf0; }
+.page-banner p { margin: 0; color: #c4e5d5; }
 .section { padding: 3.5rem 0; }
 .section-alt { background: var(--white); }
 .section-tight { margin: 2.5rem 0; }
@@ -337,7 +338,7 @@ legend + * { clear: both; }
     flex-direction: column;
     transition: transform .2s, box-shadow .2s;
 }
-.dest-card:hover { transform: translateY(-4px); box-shadow: 0 14px 32px rgba(11, 37, 69, .14); }
+.dest-card:hover { transform: translateY(-4px); box-shadow: 0 14px 32px rgba(6, 78, 59, .14); }
 .dest-card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
 .dest-body { padding: 1.1rem 1.25rem 1.25rem; display: flex; flex-direction: column; flex: 1; }
 .dest-body p { color: var(--muted); font-size: .9rem; flex: 1; }
@@ -379,7 +380,7 @@ legend + * { clear: both; }
     gap: 1.5rem;
 }
 .promo-banner h3 { color: var(--white); }
-.promo-banner p { margin: 0; color: #e0ecfa; }
+.promo-banner p { margin: 0; color: #dcf3e8; }
 
 /* ---------- Tables ---------- */
 .table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); background: var(--white); margin-bottom: 1rem; }
@@ -393,7 +394,7 @@ legend + * { clear: both; }
     white-space: nowrap;
 }
 .data-table td { padding: .75rem .9rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.data-table tbody tr:hover { background: #f8fbff; }
+.data-table tbody tr:hover { background: #f6fbf8; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table .actions { white-space: nowrap; }
 .data-table .actions .inline-form { margin-left: .25rem; }
@@ -441,7 +442,7 @@ legend + * { clear: both; }
     position: absolute;
     top: 50%;
     left: 0; right: 0;
-    border-top: 2px dashed #b6c8dc;
+    border-top: 2px dashed #b3d4c4;
 }
 .route-plane { position: relative; background: var(--white); color: var(--sky); font-size: 1.6rem; padding: 0 .5rem; }
 .route-duration { font-weight: 600; color: var(--muted); font-size: .85rem; }
@@ -497,7 +498,7 @@ legend + * { clear: both; }
     background: var(--white);
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 12px 40px rgba(11, 37, 69, .15);
+    box-shadow: 0 12px 40px rgba(6, 78, 59, .15);
     margin: 1.5rem 0;
 }
 .ticket-head {
@@ -519,7 +520,7 @@ legend + * { clear: both; }
 .ticket-stub {
     border-left: 2px dashed var(--border);
     padding: 1.5rem 1.2rem;
-    background: #f8fbff;
+    background: #f6fbf8;
     display: flex;
     flex-direction: column;
     gap: .15rem;
@@ -597,9 +598,9 @@ legend + * { clear: both; }
 /* ---------- Admin ---------- */
 .admin-bar { background: var(--navy-2); color: var(--white); }
 .admin-bar-inner { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding-top: .5rem; padding-bottom: .5rem; }
-.admin-bar .muted { color: #b9cbe2; }
+.admin-bar .muted { color: #b5d8c7; }
 .admin-nav { display: flex; gap: .25rem; flex-wrap: wrap; }
-.admin-nav a { color: #d6e4f5; padding: .45rem .8rem; border-radius: 6px; font-size: .9rem; }
+.admin-nav a { color: #d3eee1; padding: .45rem .8rem; border-radius: 6px; font-size: .9rem; }
 .admin-nav a:hover { background: rgba(255, 255, 255, .1); text-decoration: none; }
 .admin-nav a.active { background: var(--accent); color: var(--navy); font-weight: 600; }
 .admin-title { margin: 1.75rem 0 1rem; }
@@ -632,17 +633,17 @@ legend + * { clear: both; }
 .error-code { font-size: 4.5rem; font-weight: 800; color: var(--sky); line-height: 1; }
 
 /* ---------- Footer ---------- */
-.site-footer { background: var(--navy); color: #b9cbe2; font-size: .9rem; }
+.site-footer { background: var(--navy); color: #b5d8c7; font-size: .9rem; }
 .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1.3fr 1fr; gap: 2rem; padding-top: 2.5rem; padding-bottom: 2rem; }
 .site-footer h4 { color: var(--white); font-size: 1rem; }
 .site-footer ul { list-style: none; padding: 0; margin: 0; }
 .site-footer li { margin-bottom: .35rem; }
-.site-footer a { color: #b9cbe2; }
+.site-footer a { color: #b5d8c7; }
 .site-footer a:hover { color: var(--accent); }
 .brand-footer { margin-bottom: .6rem; }
 .footer-bottom { border-top: 1px solid rgba(255, 255, 255, .1); padding: 1rem 0; font-size: .82rem; }
 .footer-bottom .container { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
-.footer-bottom .muted { color: #8aa2c0; }
+.footer-bottom .muted { color: #8dbaa5; }
 
 /* ==========================================================================
    Responsive layouts

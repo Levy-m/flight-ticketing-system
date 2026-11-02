@@ -10,7 +10,7 @@
     function draw() {
 
     // Categorical slots in fixed order, and the reserved status colours.
-    var SERIES = ["#2a78d6", "#eb6834", "#1baf7a"];
+    var SERIES = ["#059669", "#2a78d6", "#d4a017"];
     var STATUS = { Confirmed: "#0ca30c", Pending: "#fab219", Cancelled: "#d03b3b" };
     var CLASS_ORDER = ["Economy", "Business", "First Class"];
     var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -23,7 +23,7 @@
     var ksh = function (n) { return "KSh " + Math.round(n).toLocaleString("en-KE"); };
     var num = function (n) { return Number(n).toLocaleString("en-KE"); };
     var grid = { color: "#e5e7eb" };
-    var barStyle = { backgroundColor: SERIES[0], hoverBackgroundColor: "#1c5cab", borderRadius: 4,
+    var barStyle = { backgroundColor: SERIES[0], hoverBackgroundColor: "#047857", borderRadius: 4,
                      borderSkipped: "start", maxBarThickness: 36 };
 
     function bucketLabel(b) {
