@@ -1,0 +1,25 @@
+{# SkyLink Assistant chat widget. Behaviour in static/js/chatbot.js, answers from /chat (chatbot.py). #}
+<div class="chatbot no-print" id="chatbot" data-url="{{ url_for('chat') }}" data-csrf="{{ csrf_token() }}">
+    <section class="chatbot-panel" id="chatbot-panel" role="dialog" aria-label="SkyLink Assistant chat" hidden>
+        <header class="chatbot-head">
+            <img src="{{ url_for('static', filename='images/airline_logo.svg') }}" alt="" width="36" height="36">
+            <div class="chatbot-title">
+                <strong>SkyLink Assistant</strong>
+                <span>Flights, bookings &amp; travel help</span>
+            </div>
+            <button type="button" class="chatbot-icon-btn" data-chat-reset title="Start a new chat" aria-label="Start a new chat">&#8635;</button>
+            <button type="button" class="chatbot-icon-btn" data-chat-close title="Close chat" aria-label="Close chat">&times;</button>
+        </header>
+        <div class="chatbot-log" aria-live="polite" aria-relevant="additions"></div>
+        <div class="chatbot-chips" aria-label="Suggested questions"></div>
+        <form class="chatbot-form" autocomplete="off">
+            <label for="chatbot-input" class="visually-hidden">Type your question</label>
+            <input type="text" id="chatbot-input" maxlength="300" placeholder="Ask about flights, baggage, bookings…">
+            <button type="submit" class="chatbot-send" aria-label="Send message">&#10148;</button>
+        </form>
+    </section>
+    <button type="button" class="chatbot-toggle" aria-expanded="false" aria-controls="chatbot-panel">
+        <span class="chatbot-toggle-icon" aria-hidden="true">&#128172;</span>
+        <span class="chatbot-toggle-text">Need help?</span>
+    </button>
+</div>

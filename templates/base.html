@@ -111,7 +111,15 @@
     </div>
 </footer>
 
+{# The assistant is for customers, so it is not shown in the staff area. #}
+{% if not (request.endpoint or '').startswith('admin') %}
+    {% include "_chatbot.html" %}
+{% endif %}
+
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% if not (request.endpoint or '').startswith('admin') %}
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

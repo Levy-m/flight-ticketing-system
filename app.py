@@ -13,10 +13,11 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from functools import wraps
 
-from flask import (Flask, abort, flash, g, redirect, render_template, request,
-                   session, url_for)
+from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
+                   request, session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import chatbot
 import database
 from database import (AIRPORTS, BOOKING_STATUSES, TRAVEL_CLASSES, get_db,
                       transaction)
@@ -761,6 +762,20 @@ def register_public_routes(app):
                 return redirect(url_for("contact"))
             flash("Please correct the errors highlighted below.", "error")
         return render_template("contact.html", form=form, errors=errors)
+
+    @app.route("/chat", methods=["POST"])
+    def chat():
+        """SkyLink Assistant: answers one chat message as JSON (see chatbot.py).
+
+        Protected by the same CSRF check as every other POST. The last route searched
+        is kept in the session so follow-ups such as "what about Friday?" work.
+        """
+        policy = {"cancellation_hours": CANCELLATION_CUTOFF_HOURS, "group_discounts": GROUP_DISCOUNTS,
+                  "max_passengers": MAX_PASSENGERS_PER_BOOKING}
+        reply, memory = chatbot.respond(request.form.get("message", ""), get_db(), policy,
+                                        customer_id=session.get("customer_id"), memory=session.get("chat_memory"))
+        session["chat_memory"] = memory
+        return jsonify(reply)
 
 
 # --------------------------------------------------------------------------- #

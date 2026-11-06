@@ -467,6 +467,70 @@ class FlightTicketingTestCase(unittest.TestCase):
             self.assertEqual(self.client.get(url).status_code, 200, url)
         self.assertEqual(self.client.get("/does-not-exist").status_code, 404)
 
+    # ---------------- chatbot (SkyLink Assistant) ----------------
+    def chat(self, message):
+        r = self.post("/chat", {"message": message})
+        self.assertEqual(r.status_code, 200)
+        return r.get_json()
+
+    def test_chat_greets_on_empty_message(self):
+        reply = self.chat("")
+        self.assertIn("SkyLink Assistant", reply["text"])
+        self.assertTrue(reply["suggestions"])
+
+    def test_chat_finds_flights_on_a_route_and_date(self):
+        day = date.today() + timedelta(days=5)
+        reply = self.chat(f"flights from Nairobi to Mombasa on {day.isoformat()}")
+        f = self.flight()
+        self.assertIn(f["flight_number"], " ".join(reply["items"]))
+        self.assertTrue(any(l["url"].startswith(f"/book/{f['flight_id']}") for l in reply["links"]))
+
+    def test_chat_understands_misspelt_city_and_group_size(self):
+        reply = self.chat("i want to fly to mombsa for 6 people")
+        self.assertIn("Mombasa", reply["text"])
+        self.assertIn("10% off", reply["text"])
+        self.assertIn("passengers=6", reply["links"][0]["url"])
+
+    def test_chat_follow_up_keeps_route_and_date(self):
+        day = date.today() + timedelta(days=5)
+        self.chat(f"Nairobi to Mombasa on {day.isoformat()}")
+        reply = self.chat("what about business class?")
+        self.assertIn("Business flights from Nairobi to Mombasa", reply["text"])
+        self.assertIn(day.strftime("%d %b"), reply["text"])
+
+    def test_chat_unknown_route_and_same_city(self):
+        self.assertIn("We don't have flights from Kisumu to Dubai", self.chat("Kisumu to Dubai")["text"])
+        self.assertIn("same", self.chat("Nairobi to Nairobi")["text"])
+
+    def test_chat_answers_help_topics(self):
+        self.assertIn("23 kg", " ".join(self.chat("how much baggage can I carry?")["items"]))
+        self.assertIn("24 hours", self.chat("how do I cancel my trip")["text"])
+        self.assertIn("pay at any SkyLink Airlines office", self.chat("can I pay with mpesa")["text"])
+
+    def test_chat_booking_status_requires_sign_in(self):
+        reply = self.chat("status of SLDEMO01")
+        self.assertIn("sign in", reply["text"])
+        self.assertNotIn("Confirmed", reply["text"])
+
+    def test_chat_shows_own_booking_but_not_others(self):
+        self.login_jane()
+        self.assertIn("SLDEMO01 is Confirmed", self.chat("status of sldemo01")["text"])
+        other = self.chat("SLDEMO02")["text"]  # Brian's booking
+        self.assertIn("couldn't find booking SLDEMO02", other)
+        self.assertNotIn("Pending", other)
+
+    def test_chat_ignores_words_that_look_like_references(self):
+        # "sleeping" has the same shape as a reference (SL + 6 characters) but must not be treated as one.
+        self.assertTrue(self.chat("I was sleeping on the plane")["text"].startswith("Sorry"))
+
+    def test_chat_requires_csrf_token(self):
+        self.assertEqual(self.client.post("/chat", data={"message": "hi"}).status_code, 400)
+
+    def test_chat_widget_on_public_pages_only(self):
+        self.assertIn(b'id="chatbot"', self.client.get("/").data)
+        self.login()
+        self.assertNotIn(b'id="chatbot"', self.client.get("/admin").data)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -151,6 +151,7 @@ Other optional settings: `SECRET_KEY` (otherwise a random key is generated and s
 | Staff – reports | Key figures plus charts (Chart.js, bundled so it works offline): revenue over time, **most travelled destinations**, seat occupancy by destination, bookings by status, passengers by class, and a top-routes table. Filter by period: this year to date, last 12 months, 90 days or 30 days |
 | Staff – accounts | Administrators create staff accounts, switch them between administrator and agent, or remove them |
 | About / Contact | Company background, mission, vision, services, destinations; validated contact form saved to the database |
+| SkyLink Assistant (chatbot) | "Need help?" button on every customer page. Answers in plain language from live data: flight searches ("Nairobi to Mombasa on Friday for 2 people", "cheapest flight to Zanzibar"), the signed-in customer's bookings and their status, and help on baggage, payment, cancellation, check-in, documents and group discounts. Understands misspelt cities and follow-ups ("what about business class?"). Built in Python (`chatbot.py`): no API key or internet needed |
 
 ### Roles
 
@@ -251,8 +252,10 @@ In PyCharm: right-click the `tests` folder → **Run 'Python tests in tests'**.
 | 18 | Manage staff accounts | Created, role changed, removed | `test_admin_creates_and_manages_staff` |
 | 19 | Reports page | Loads for staff with correct figures | `test_reports_page_for_staff_only` |
 | 20 | Submit a contact message | Message saved | `test_submit_contact_message` |
+| 21 | Ask the chatbot for flights on a route | Matching flights with Book links | `test_chat_finds_flights_on_a_route_and_date` |
+| 22 | Ask the chatbot about someone else's booking | Nothing disclosed | `test_chat_booking_status_requires_sign_in`, `test_chat_shows_own_booking_but_not_others` |
 
-Extra tests cover past-date rejection, the disabled M-Pesa option, returning to the chosen flight after sign-in, safe redirects, accounts across sessions, duplicate registration, demoted staff losing access immediately, consistent mock data, duplicate flight numbers, overselling via admin edit, CSRF rejection, SQL-injection input, HTML escaping, password hashing, booking filters, and that every public page loads.
+Extra tests cover past-date rejection, the disabled M-Pesa option, returning to the chosen flight after sign-in, safe redirects, accounts across sessions, duplicate registration, demoted staff losing access immediately, consistent mock data, duplicate flight numbers, overselling via admin edit, CSRF rejection, SQL-injection input, HTML escaping, password hashing, booking filters, that every public page loads, and the chatbot's typo handling, follow-up questions, help answers and CSRF protection.
 
 ## 9. Project structure
 
@@ -260,11 +263,12 @@ Extra tests cover past-date rejection, the disabled M-Pesa option, returning to 
 flight-ticketing-system/
 ├── app.py                 # Flask app: routes, validation, security, roles, reports, business rules
 ├── database.py            # schema, upgrades, connection helpers, transactions, sample and mock data
+├── chatbot.py             # SkyLink Assistant: understands chat messages and builds the replies
 ├── requirements.txt
 ├── README.md
 ├── flight_ticketing.db    # created automatically (not committed)
 ├── templates/
-│   ├── base.html, _macros.html, _ticket.html, error.html
+│   ├── base.html, _macros.html, _ticket.html, _chatbot.html, error.html
 │   ├── index.html, search_flights.html, flight_details.html, book_flight.html
 │   ├── booking.html, booking_confirmation.html, my_bookings.html
 │   ├── about.html, contact.html
@@ -274,6 +278,7 @@ flight-ticketing-system/
 ├── static/
 │   ├── css/style.css
 │   ├── js/script.js       # nav toggle, live total and discount, client-side validation, print
+│   ├── js/chatbot.js      # chat window: sends messages to /chat, shows replies, remembers the chat
 │   ├── js/reports.js      # draws the report charts
 │   ├── js/vendor/chart.umd.min.js   # Chart.js 4.4.1, bundled for offline use
 │   └── images/            # airline_logo.svg, aircraft.svg, destinations/*.svg
